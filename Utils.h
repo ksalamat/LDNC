@@ -38,27 +38,27 @@ public:
 };
 
 class Attribute {
-// data members
+	// data members
 public:
- uint8_t m_nodeId;
- int8_t m_index;
- uint8_t m_destId;
- uint32_t genTime;
- uint32_t receptionNum;
- uint32_t sendingNum;
- Attribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
- ~Attribute ();
- //member functions
- void SetNodeId (uint8_t nodeId);
- uint8_t GetNodeId () const;
- void SetIndex (int index);
- uint8_t GetIndex () const;
- void SetGenTime (uint32_t genTime);
- uint32_t GetGenTime () const;
- void SetDestination (const uint8_t ip);
- uint8_t GetDestination () const;
- bool operator==(const Attribute& p) const;
-}
+	uint8_t m_nodeId;
+	int8_t m_index;
+	uint8_t m_destId;
+	uint32_t genTime;
+	uint32_t receptionNum;
+	uint32_t sendingNum;
+	Attribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
+	~Attribute ();
+	//member functions
+	void SetNodeId (uint8_t nodeId);
+	uint8_t GetNodeId () const;
+	void SetIndex (int index);
+	uint8_t GetIndex () const;
+	void SetGenTime (uint32_t genTime);
+	uint32_t GetGenTime () const;
+	void SetDestination (const uint8_t ip);
+	uint8_t GetDestination () const;
+	bool operator==(const Attribute& p) const;
+}; 
 
 // class CoefElt
 class CoefElt
@@ -148,6 +148,3 @@ public:
 
 
 #endif
-
-
-
