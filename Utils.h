@@ -55,6 +55,7 @@ public:
 	void SetDestination (const uint8_t ip);
 	uint8_t GetDestination () const;
 	bool operator==(const NCAttribute& p) const;
+	NCAttribute& operator= (const NCAttribute& p);
 };
 
 // class CoefElt
