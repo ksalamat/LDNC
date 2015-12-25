@@ -668,8 +668,8 @@ void MyNCApp::Forward ()
 				MyHeader lcHeader;
 				lcHeader.SetNodeId (m_myNodeId);
 				lcHeader.SetPacketType (1);
-				//should change: each var should have its own genTime
-				lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
+				//the line below has changed in the forthcoming: each var should have its own genTime
+				//lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
 				MapType::iterator it;
 				std::stringstream ss;
 				ss << m_myNodeId;
@@ -685,6 +685,7 @@ void MyNCApp::Forward ()
 					}
 					lc.coeff = (*it).second.GetCoef();
 					lc.dstId = (*it).second.GetDestination();
+					lc.genTime= (*it).second.GetGenTime();
 					lcHeader.m_linComb.push_back (lc);
 				}
 				lcHeader.SetLinearCombinationSize (lcHeader.m_linComb.size ());
