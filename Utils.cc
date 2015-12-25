@@ -175,10 +175,7 @@ LPMatrix::PrintMatrix (int m, int n, int nodeId) const
 }//end of definition of class LPMatrix
 
 
-PacketId::PacketId ()
-{}
-
-PacketId::PacketId (const uint8_t nodeId, const int index, const uint8_t Id, const uint32_t genTime)
+Attribute::Attribute (const uint8_t nodeId, const int index, const uint8_t Id, const uint32_t genTime)
 {
 	m_nodeId=nodeId;
 	m_index=index;
@@ -186,59 +183,59 @@ PacketId::PacketId (const uint8_t nodeId, const int index, const uint8_t Id, con
 	m_genTime=genTime;
 }
 
-PacketId::~PacketId ()
+Attribute::~Attribute ()
 {}
 
-// implementation of PacketId methods
+// implementation of Attribute methods
 int
-PacketId::GetIndex () const
+Attribute::GetIndex () const
 {
 	return m_index;
 }
 
 void
-PacketId::SetIndex (int index)
+Attribute::SetIndex (int index)
 {
 	m_index=index;
 }
 
 uint32_t
-PacketId::GetGenTime () const
+Attribute::GetGenTime () const
 {
     return m_genTime;
 }
 void
-PacketId::SetGenTime (uint32_t genTime)
+Attribute::SetGenTime (uint32_t genTime)
 {
   m_genTime=genTime;
 }
 
 uint8_t
-PacketId::GetNodeId () const
+Attribute::GetNodeId () const
 {
 	return m_nodeId;
 }
 
 void
-PacketId::SetNodeId (uint8_t nodeId)
+Attribute::SetNodeId (uint8_t nodeId)
 {
 	m_nodeId=nodeId;
 }
 
 bool
-PacketId::operator==(const PacketId& p) const
+Attribute::operator==(const Attribute& p) const
 {
 	return m_nodeId==p.m_nodeId && m_index==p.m_index && m_destId==p.m_destId;
 }
 
 void
-PacketId::SetDestination (uint8_t nodeId)
+Attribute::SetDestination (uint8_t nodeId)
 {
 	m_destId=nodeId;
 }
 
 uint8_t
-PacketId::GetDestination () const
+Attribute::GetDestination () const
 {
 	return m_destId;
 }
@@ -346,10 +343,10 @@ CoefElt::Key()
 	return str;
 }
 
-PacketId
+Attribute
 CoefElt::GetPktId () const
 {
-	PacketId pktId (m_nodeId, m_index, m_destId);
+	Attribute pktId (m_nodeId, m_index, m_destId);
 	return pktId;
 }
 
@@ -583,4 +580,3 @@ NetworkCodedDatagram::Minus (NetworkCodedDatagram& g, galois::GaloisField *galoi
         }
     }
 }
-
