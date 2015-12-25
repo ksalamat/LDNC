@@ -175,7 +175,7 @@ LPMatrix::PrintMatrix (int m, int n, int nodeId) const
 }//end of definition of class LPMatrix
 
 
-Attribute::Attribute (const uint8_t nodeId, const int index, const uint8_t Id, const uint32_t genTime)
+NCAttribute::NCAttribute (const uint8_t nodeId, const int index, const uint8_t Id, const uint32_t genTime)
 {
 	m_nodeId=nodeId;
 	m_index=index;
@@ -183,59 +183,59 @@ Attribute::Attribute (const uint8_t nodeId, const int index, const uint8_t Id, c
 	m_genTime=genTime;
 }
 
-Attribute::~Attribute ()
+NCAttribute::~NCAttribute ()
 {}
 
-// implementation of Attribute methods
+// implementation of NCAttribute methods
 int
-Attribute::GetIndex () const
+NCAttribute::GetIndex () const
 {
 	return m_index;
 }
 
 void
-Attribute::SetIndex (int index)
+NCAttribute::SetIndex (int index)
 {
 	m_index=index;
 }
 
 uint32_t
-Attribute::GetGenTime () const
+NCAttribute::GetGenTime () const
 {
     return m_genTime;
 }
 void
-Attribute::SetGenTime (uint32_t genTime)
+NCAttribute::SetGenTime (uint32_t genTime)
 {
   m_genTime=genTime;
 }
 
 uint8_t
-Attribute::GetNodeId () const
+NCAttribute::GetNodeId () const
 {
 	return m_nodeId;
 }
 
 void
-Attribute::SetNodeId (uint8_t nodeId)
+NCAttribute::SetNodeId (uint8_t nodeId)
 {
 	m_nodeId=nodeId;
 }
 
 bool
-Attribute::operator==(const Attribute& p) const
+NCAttribute::operator==(const NCAttribute& p) const
 {
 	return m_nodeId==p.m_nodeId && m_index==p.m_index && m_destId==p.m_destId;
 }
 
 void
-Attribute::SetDestination (uint8_t nodeId)
+NCAttribute::SetDestination (uint8_t nodeId)
 {
 	m_destId=nodeId;
 }
 
 uint8_t
-Attribute::GetDestination () const
+NCAttribute::GetDestination () const
 {
 	return m_destId;
 }
@@ -343,10 +343,10 @@ CoefElt::Key()
 	return str;
 }
 
-Attribute
+NCAttribute
 CoefElt::GetPktId () const
 {
-	Attribute pktId (m_nodeId, m_index, m_destId);
+	NCAttribute pktId (m_nodeId, m_index, m_destId);
 	return pktId;
 }
 

@@ -9,19 +9,16 @@ static const float NEIGHBOR_TIMER = 1.5;
 
 std::string StringConcat (uint16_t nodeId, uint16_t packetUniq);
 
-
-
 class LinearCombination
 {
 public:
 	LinearCombination();
-    ~LinearCombination();
-    std::string pktId;
+  ~LinearCombination();
+  std::string pktId;
 	uint8_t coeff;
 	uint8_t dstId;
 	uint32_t genTime;
 };
-
 
 class Matrix //this class is for coefficient of packets in NC
 {
@@ -37,7 +34,7 @@ public:
 	void PrintMatrix (int m, int n, int nodeId) const;
 };
 
-class Attribute {
+class NCAttribute {
 	// data members
 public:
 	uint8_t m_nodeId;
@@ -46,8 +43,8 @@ public:
 	uint32_t genTime;
 	uint32_t receptionNum;
 	uint32_t sendingNum;
-	Attribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
-	~Attribute ();
+	NCAttribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
+	~NCAttribute ();
 	//member functions
 	void SetNodeId (uint8_t nodeId);
 	uint8_t GetNodeId () const;
@@ -57,8 +54,8 @@ public:
 	uint32_t GetGenTime () const;
 	void SetDestination (const uint8_t ip);
 	uint8_t GetDestination () const;
-	bool operator==(const Attribute& p) const;
-}; 
+	bool operator==(const NCAttribute& p) const;
+};
 
 // class CoefElt
 class CoefElt
@@ -90,7 +87,7 @@ public:
 	void SetDestination (uint8_t destId);
 	uint8_t GetDestination () const;
 	std::string Key ();
-	Attribute GetAttribute () const;
+	NCAttribute GetAttribute () const;
 	bool operator== (const CoefElt& coef) const;
 	CoefElt& operator= (const CoefElt& coef);
 };
