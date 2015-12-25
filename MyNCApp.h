@@ -33,10 +33,6 @@ public:
   std::vector<std::string> sourceForwarded;
   Ptr<MyBloom_filter> neighborDecodingFilter;
   Ptr<MyBloom_filter> neighborDecodedFilter;
-  std::vector<PacketId> neighborNotSolvedVars;
-  std::vector<PacketId> neighborSolvedVars;
-  std::vector<double> neighborDecodedListUtilities;
-  std::vector<double> neighborVarListUtilities;
 };
 
 struct WaitingListMember
@@ -154,8 +150,8 @@ public:
   std::vector<NetworkCodedDatagram*> m_decodingBuf;
     // List containing decoded packets
   std::vector<NetworkCodedDatagram*> m_decodedBuf;
-  std::vector<PacketId> m_decodedList;
-  std::vector<PacketId> m_varList;
+  std::vector<NCAttribute> m_decodedList;
+  std::vector<NCAttribute> m_varList;
   int m_rank;
   Matrix m_matrix;
   LPMatrix m_lpMatrix;//this matrix records unreceived vars. it will be used for constraints in LP
@@ -218,6 +214,3 @@ public:
   bool CommandSetup (int argc, char **argv);
   Gnuplot2dDataset ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &wifiPhy, const NqosWifiMacHelper &wifiMac, const YansWifiChannelHelper &wifiChannel);
 };
-
-
-

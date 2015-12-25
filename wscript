@@ -1,9 +1,7 @@
 ## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
 
 def build(bld):
-    obj = bld.create_ns3_program('LDNC', ['core', 'mobility', 'wifi', 'applications', 'point-to-point', 
+    obj = bld.create_ns3_program('LDNC', ['core', 'mobility', 'wifi', 'applications', 'point-to-point',
                                                     'internet', 'csma', 'olsr', 'netanim'])
-    obj.source = ['Utils.cc', 'GaloisField.cpp', 'LDNC+BF.cc']
+    obj.source = ['Utils.cc', 'GaloisField.cpp', 'LDNC+BF+Aging.cc']
     obj.env.append_value("LIB", ["glpk"])
-
-

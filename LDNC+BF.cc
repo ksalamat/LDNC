@@ -82,11 +82,6 @@ Neighbor::Neighbor ()
   neighborhoodSize = 0;
   neighborDecodingBufSize = 0;
   neighborRemainingCapacity = 0;
-  sourceForwarded.clear();
-  neighborNotSolvedVars.clear();
-  neighborSolvedVars.clear();
-  neighborDecodedListUtilities.clear();
-  neighborVarListUtilities.clear();
 }
 
 Neighbor::~Neighbor ()
@@ -1717,7 +1712,3 @@ int main (int argc, char* argv[]) {
 
 	return 0;
 }
-
-
-
-
