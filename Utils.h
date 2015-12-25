@@ -43,6 +43,7 @@ public:
 	uint32_t m_genTime;
 	uint32_t m_receptionNum;
 	uint32_t m_sendingNum;
+	NCAttribute();
 	NCAttribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
 	~NCAttribute ();
 	//member functions

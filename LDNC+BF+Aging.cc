@@ -87,11 +87,11 @@ Neighbor::Neighbor ()
   neighborhoodSize = 0;
   neighborDecodingBufSize = 0;
   neighborRemainingCapacity = 0;
-  sourceForwarded.clear();
-  neighborNotSolvedVars.clear();
-  neighborSolvedVars.clear();
-  neighborDecodedListUtilities.clear();
-  neighborVarListUtilities.clear();
+  //sourceForwarded.clear();
+  //neighborNotSolvedVars.clear();
+  //neighborSolvedVars.clear();
+  //neighborDecodedListUtilities.clear();
+  //neighborVarListUtilities.clear();
 }
 
 Neighbor::~Neighbor ()
@@ -100,7 +100,6 @@ Neighbor::~Neighbor ()
 MyHeader::MyHeader ()
 {
   m_packetType = 0;
-  m_time = 0;
   m_nodeId = 0;
   m_linCombSize = 0;
   m_neighborhoodSize = 0;
@@ -267,12 +266,6 @@ MyHeader::SetNodeId (uint8_t id)
 }
 
 void
-MyHeader::SetTime (uint32_t time)
-{
-    m_time=time;
-}
-
-void
 MyHeader::SetNeighborhoodSize (uint8_t size)
 {
     m_neighborhoodSize = size;
@@ -312,12 +305,6 @@ uint8_t
 MyHeader::GetNodeId (void) const
 {
   return m_nodeId;
-}
-
-uint32_t
-MyHeader::GetTime (void) const
-{
-    return m_time;
 }
 
 uint8_t
@@ -1177,7 +1164,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
 {
   uint32_t i,j,k,l,upPivot;
   MapType::iterator it,it2, it4;
-  std::vector<NCAttribute>::iterator it3;
+  std::vector<NCAttribute>::iterator it3, it5;
   std::vector<NetworkCodedDatagram*>::iterator bufItr;
   CoefElt coef;
   NCAttribute id;
@@ -1277,8 +1264,9 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
             }
           else
             {
-            	//BufferManagement (we remove the oldest packet from decoded lists)
-              int oldestIndex=0;
+              //BufferManagement (we remove the oldest packet from decoded lists)
+            //  int oldestIndex=0;
+            //  for (it5=m_decodedList.begin(); it5!=m_decodedList.end();it5++){}
               nDroppedPackets++;
             }
           //update matrix m_matrix

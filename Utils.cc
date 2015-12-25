@@ -174,6 +174,10 @@ LPMatrix::PrintMatrix (int m, int n, int nodeId) const
 	  }
 }//end of definition of class LPMatrix
 
+NCAttribute::NCAttribute()
+{
+
+}
 
 NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_t Id, const uint32_t genTime)
 {
