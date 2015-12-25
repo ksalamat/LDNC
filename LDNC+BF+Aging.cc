@@ -781,11 +781,11 @@ NetworkCodedDatagram*
 		{
 			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
 			MapType::iterator it;
-			std::vector<PacketId>::iterator itr;//,itr2;
+			std::vector<NCAttribute>::iterator itr;//,itr2;
 			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++)
 			{
-				itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
-				//itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
+				itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
+				//itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
 				if (itr!=m_varList.end())//If you find the variable in the variable list
 				{
 //					uint16_t I = (uint16_t)(itr - m_varList.begin());//find the index of this variable in the varList!!!
@@ -938,7 +938,7 @@ void
 MyNCApp::Reduce (NetworkCodedDatagram& g)
 {
 	MapType::iterator it;
-    std::vector<PacketId>::iterator itr;
+    std::vector<NCAttribute>::iterator itr;
 	std::vector<NetworkCodedDatagram*>::iterator bufItr;
 	if (!m_decodedList.empty ())
 	  {
@@ -946,7 +946,7 @@ MyNCApp::Reduce (NetworkCodedDatagram& g)
           {
             for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++)
               {
-                itr = std::find (m_decodedList.begin(), m_decodedList.end(), (*it).second.GetPktId ());
+                itr = std::find (m_decodedList.begin(), m_decodedList.end(), (*it).second.GetAttribute ());
                 if (itr!=m_decodedList.end())
                   {
                     g.m_coefsList.erase (it);
@@ -961,11 +961,11 @@ int
 MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 {
 	MapType::iterator it;
-	std::vector<PacketId>::iterator itr,itr2;
+	std::vector<NCAttribute>::iterator itr,itr2;
 	int newVar=0;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
-		itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
-		itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
+		itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
+		itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
 		if (itr==m_varList.end() && itr2==m_decodedList.end()) {
 			newVar++;
 		}
@@ -980,12 +980,12 @@ void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
-  std::vector<PacketId>::iterator itr,itr2;
+  std::vector<NCAttribute>::iterator itr,itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
-      itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
-      itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
+      itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
+      itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
       if (itr==m_varList.end() && itr2==m_decodedList.end()) {
-          m_varList.push_back ((*it).second.GetPktId ());
+          m_varList.push_back ((*it).second.GetAttribute ());
       }
   }
 }
@@ -996,7 +996,7 @@ MyNCApp::GenerateMatrix ()
 	m_matrix. A. clear ();
     std::vector<NetworkCodedDatagram*>::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
-    std::vector<PacketId>::iterator varLstItr;
+    std::vector<NCAttribute>::iterator varLstItr;
 	NetworkCodedDatagram* g;
 	g = new NetworkCodedDatagram();
 
@@ -1021,7 +1021,7 @@ MyNCApp::GenerateMatrix ()
 		    }*/
       for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++)
         {
-          varLstItr = std::find (m_varList.begin(), m_varList.end(), (*coefsLstItr).second.GetPktId ());
+          varLstItr = std::find (m_varList.begin(), m_varList.end(), (*coefsLstItr).second.GetAttribute ());
           pos = varLstItr - m_varList.begin ();
           if (varLstItr==m_varList.end())
             {
@@ -1135,7 +1135,7 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
     {
       // swap column in var_list
       // L : # of rows
-      PacketId id;
+      NCAttribute id;
       id = m_varList[col1];
       m_varList[col1] = m_varList[col2];
       m_varList[col2] = id;
@@ -1177,10 +1177,10 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
 {
   uint32_t i,j,k,l,upPivot;
   MapType::iterator it,it2, it4;
-  std::vector<PacketId>::iterator it3;
+  std::vector<NCAttribute>::iterator it3;
   std::vector<NetworkCodedDatagram*>::iterator bufItr;
   CoefElt coef;
-  PacketId id;
+  NCAttribute id;
   bool solved=true;
   NetworkCodedDatagram* g;
   g= new NetworkCodedDatagram();
@@ -1271,7 +1271,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
                         {
                           NS_LOG_UNCOND("Error in decoded Packet !");
                         }
-                      m_decodedList.push_back((*it).second.GetPktId());
+                      m_decodedList.push_back((*it).second.GetAttribute());
                     }
                 }
             }
@@ -1459,7 +1459,7 @@ void MyNCApp::PacketInjector ()
   	waitElm.pktId = (*it).first ;
   	waitElm.entranceTime = now.GetNanoSeconds();
   	m_waitingList.push_back (waitElm);
-  	m_decodedList.push_back (it->second.GetPktId());
+  	m_decodedList.push_back (it->second.GetAttribute());
   	m_nInjectedPackets++;
   	NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Source "<<m_myNodeId<<" injects "<<it->first<<" from m_buffer to m_decodedBuf and m_nInjectedPackets is "<<m_nInjectedPackets);
   }
