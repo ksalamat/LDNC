@@ -1241,7 +1241,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
               g = m_decodingBuf[i-1];
               Time now = Simulator::Now ();
               it = g -> m_coefsList.begin();
-              if (m_myNCAppIp != it -> second.GetSource())
+              if (m_myNCAppIp != it -> second.GetSource())// if I am not the source of this
                 {
                   for (bufItr= m_decodedBuf.begin() ; bufItr!=m_decodedBuf.end() ; bufItr++)
                     {
@@ -1255,8 +1255,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
                     {
                       if (m_myNodeId == it -> second.GetDestination()) // We have received a packet at destination !!!!!
                         {
-                          //should change...
-                          packetDelay += (now.GetNanoSeconds () - g->m_genTime);
+                          packetDelay += (now.GetNanoSeconds () - it->second.GetGenTime());
                           nReceivedPackets++;
                           MyHeader removeHeader;
                           packetIn->RemoveHeader(removeHeader);
