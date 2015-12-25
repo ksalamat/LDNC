@@ -40,9 +40,9 @@ public:
 	uint8_t m_nodeId;
 	int8_t m_index;
 	uint8_t m_destId;
-	uint32_t genTime;
-	uint32_t receptionNum;
-	uint32_t sendingNum;
+	uint32_t m_genTime;
+	uint32_t m_receptionNum;
+	uint32_t m_sendingNum;
 	NCAttribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
 	~NCAttribute ();
 	//member functions
