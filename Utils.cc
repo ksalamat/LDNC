@@ -346,8 +346,8 @@ CoefElt::Key()
 NCAttribute
 CoefElt::GetPktId () const
 {
-	NCAttribute pktId (m_nodeId, m_index, m_destId);
-	return pktId;
+	NCAttribute pktAttribute (m_nodeId, m_index, m_destId, m_genTime);
+	return pktAttribute;
 }
 
 bool
@@ -428,7 +428,6 @@ NetworkCodedDatagram::operator= (const NetworkCodedDatagram& nc)
 {
   m_dataLength = nc.m_dataLength;
   m_index = nc.m_index;
-  m_genTime = nc.m_genTime;
   MapType::iterator it;
   MapType tmpMap;
   tmpMap = nc.m_coefsList;
