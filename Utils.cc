@@ -344,7 +344,7 @@ CoefElt::Key()
 }
 
 NCAttribute
-CoefElt::GetPktId () const
+CoefElt::GetAttribute () const
 {
 	NCAttribute pktAttribute (m_nodeId, m_index, m_destId, m_genTime);
 	return pktAttribute;
