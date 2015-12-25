@@ -1264,7 +1264,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
                           NS_LOG_UNCOND("packetIn->GetSize () = "<<packetIn->GetSize ()<<" nReceivedBytes = "<<nReceivedBytes<<"  nReceivedPacket = "<<nReceivedPackets<<" m_myNodeId = "<<m_myNodeId);
                           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
                           //should change and merge with above line...
-                          NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetNanoSeconds () - g->m_genTime));
+                          NS_LOG_UNCOND ("and delivery delay for this packet is : "<<now.GetNanoSeconds () - it->second.GetGenTime());
                         }
                       m_decodedBuf.push_back(g);
                       if (g->m_coefsList.size() !=1)
