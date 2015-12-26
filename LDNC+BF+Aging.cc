@@ -743,7 +743,7 @@ Ptr<NetworkCodedDatagram>
 	}
 
 	int numVar=0;
-	int index=0;
+	int index=0, i;
 	std::vector<double> var,F, X, B;
 	m_lpMatrix.A.clear();
 	m_lpMatrix.SetDimensions((int) m_neighborhood.size(), l);
@@ -756,8 +756,8 @@ Ptr<NetworkCodedDatagram>
     B.at(index)=listIterator->neighborRemainingCapacity;
 		//let's first iterate over the decoded packets
 	  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
-
-		for (int i=0, itr=m_decodedBuf.begin();itr!=m_decodedBuf.end(); i++, itr++)
+    int i=0;
+		for (itr=m_decodedBuf.begin();itr!=m_decodedBuf.end();itr++)
 		{
 			F.at(i)=0;
 			std::string tmpStr = itr->first;
@@ -779,6 +779,7 @@ Ptr<NetworkCodedDatagram>
 					m_lpMatrix.SetValue(index,i,1);
 				}
 			}
+      i++
 		}//for loop over decoded packets
 			//now let's iterate over the decodingList
 		for (uint16_t i=0; i< len-L; i++)
@@ -1015,8 +1016,8 @@ void MyNCApp::GenerateMatrix ()
       NS_LOG_UNCOND ("# of equations > # of variables !");
 	}
 	m_matrix.SetDimensions (M, N);
-
-	for (int i=0, bufItr=m_decodingBuf.begin (); bufItr!=m_decodingBuf.end (); bufItr++,i++) {
+  int i=0
+	for (bufItr=m_decodingBuf.begin (); bufItr!=m_decodingBuf.end (); bufItr++) {
     g=bufItr;
     for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++) {
       varLstItr = find (m_varList.begin(), m_varList.end(), coefsLstItr->first);
@@ -1026,6 +1027,7 @@ void MyNCApp::GenerateMatrix ()
       pos = varLstItr - m_varList.begin ();
       m_matrix.SetValue (i,pos, (*coefsLstItr).second.GetCoef ());
     }
+    i++;
 	}
 }
 
