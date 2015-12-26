@@ -1222,9 +1222,8 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
 
       // Transfer the decoded packet to decodedbuffer;
       if (m_decodedBuf.size() < DECODED_BUFF_SIZE) {
-        //        BufferManagement;
         //BufferManagement (we remove the oldest packet from decoded lists)
-        int oldestIndex=0;
+        RemoveOldest();
       }
       g = m_decodingBuf[i-1]; //solved variable is in g
       if (g->m_coefsList.size() !=1){
@@ -1361,7 +1360,7 @@ MyNCApp::GeneratePacket ()
 		}
 		else
 		{
-				//ManageBuffer();
+          RemoveOldest();
 		}
 	}
 	//  Simulator::Schedule (Seconds (expVar->GetValue ()), &MyNCAppSource::GeneratePacket, this, node, destInterfaces, expVar, uniVar);
@@ -1412,11 +1411,27 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 	}
 }
 
+void MyNCApp::RemoveOldest ()
+{
+  std::map<std::string, DecodedPacketStorage*> :iterator pointToOldest, it8;
+  pointToOldest = m_decodedBuf.begin(); //;
+  for (it8= ++m_decodedBuf.begin(); it8!=m_decodedBuf.end(); it8++)
+    {
+      if (it8->second.attribute.GetGenTime() > pointToOldest->second.attribute.GetGenTime())
+        {
+          pointToOldest=it8;
+        }
+    }
+    m_decodedBuf.erase (pointToOldest);
+}
+
 void MyNCApp::PacketInjector ()
 {
-  if (m_decodedBuf.size()==DECODED_BUFF_SIZE) {
- // 	manageBuffer();
-  } else {
+  if (m_decodedBuf.size()==DECODED_BUFF_SIZE)
+    {
+ 	  RemoveOldest();
+    }
+   else {
 		NetworkCodedDatagram *p;
 		p= new NetworkCodedDatagram();
 		p=m_buffer.back();

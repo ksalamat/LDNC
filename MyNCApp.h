@@ -131,6 +131,7 @@ public:
   void UpdateWaitingList(std::string);
   void GeneratePacket();
   void PacketInjector();
+  void RemoveOldest ()
 protected:
   std::list<Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source
