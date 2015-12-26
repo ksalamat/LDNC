@@ -369,13 +369,13 @@ Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predict
 
 DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
   MapType::iterator it=nc->m_coefsList.begin();
-  attribute->m_nodeId=it->m_nodeId;
-  attribute->m_index=it->m_index;
-	attribute->m_destId=it->m_destId;
-	attribute->m_genTime=it->second.GetGenTime();
-	attribute->m_receptionNum=0
-	attribute->m_sendingNum=0
-    ncDatagram=nc;
+  attribute.m_nodeId=it->m_nodeId;
+  attribute.m_index=it->m_index;
+	attribute.m_destId=it->m_destId;
+	attribute.m_genTime=it->second.GetGenTime();
+	attribute.m_receptionNum=0
+	attribute.m_sendingNum=0
+  ncDatagram=nc;
 }
 
 DecodedPacketStorage::~DecodedPacketStorage() {
@@ -488,7 +488,7 @@ MyNCApp::GenerateBeacon ()
 	    //No No ! we insert string in BFs !!!
 		tempFilter1->insert(itr->first);
 	}
-	std::map<std::string, DecodedPacketStorage*>::iterator itr2;
+	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
 	for (itr2=m_decodedBuf.begin(); itr2!=m_decodedBuf.end(); itr2++)
 	{
 	    //No No ! we insert string in BFs !!!
@@ -944,15 +944,15 @@ Ptr<NetworkCodedDatagram>
 void MyNCApp::Reduce (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
-  std::map<std::string, DecodedPacketStorage>::iterator itr;
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
 	std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	if (!m_decodedBuf.empty ()) {
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
       itr = find (m_decodedBuf.begin(), m_decodedBuf.end(), it->first);
       if (itr!=m_decodedBuf.end()) {// we should reduce the packet
         Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram> (*(itr->NCdatagram));
-        nc.Product(it->coef);
-        g.Minus(nc, m_nodeGaloisField);
+        nc->Product(it->coef,m_nodeGaloisField);
+        g.Minus(*nc, m_nodeGaloisField);
       }
     }
   }

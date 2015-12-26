@@ -116,7 +116,7 @@ public:
   void Forward ();
   void UpdateNeighborList(MyHeader, Ipv4Address);
   void UpdateNeighorhoodEst(std::string);
-  NetworkCodedDatagram* Encode ();
+  Ptr<NetworkCodedDatagram> Encode ();
   void Reduce (NetworkCodedDatagram& g);
   void UpdateVarList (NetworkCodedDatagram& g);
   int CheckCapacity(NetworkCodedDatagram& g);
