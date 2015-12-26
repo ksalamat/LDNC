@@ -743,7 +743,7 @@ Ptr<NetworkCodedDatagram>
 	}
 
 	int numVar=0;
-	int index=0, i;
+	int index=0;
 	std::vector<double> var,F, X, B;
 	m_lpMatrix.A.clear();
 	m_lpMatrix.SetDimensions((int) m_neighborhood.size(), l);
@@ -893,7 +893,7 @@ Ptr<NetworkCodedDatagram>
 				{
 					coef = uniVar->GetInteger (1,255);
 					//NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
-					it= (m_decodeBuf.begin()+i);
+					it= (m_decodedBuf.begin()+i);
           g=*it;
 //          (*m_decodedBuf.at(i));
 					g.Product(coef, m_nodeGaloisField );
@@ -951,7 +951,7 @@ void MyNCApp::Reduce (NetworkCodedDatagram& g)
       itr = find (m_decodedBuf.begin(), m_decodedBuf.end(), it->first);
       if (itr!=m_decodedBuf.end()) {// we should reduce the packet
         Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram> (*(itr->NCdatagram));
-        nc->Product(it->coef,m_nodeGaloisField);
+        nc->Product(it->second.coef,m_nodeGaloisField);
         g.Minus(*nc, m_nodeGaloisField);
       }
     }
