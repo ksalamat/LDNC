@@ -123,7 +123,7 @@ public:
 	void ResetDecoded ();
 	bool IsDecoded() const;
 	void Product(int coef);
-  void Sum (NetworkCodedDatagram& g);
+    void Sum (NetworkCodedDatagram& g);
 	void Minus (NetworkCodedDatagram& g);
 };
 

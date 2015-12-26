@@ -367,14 +367,14 @@ Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predict
 
 
 DecodedPacketStorage::DecodedPacketStorage(NetworkCodedDatagram* nc){
-  mapType::iterator it=nc->coefsList.begin();
+  mapType::iterator it=nc->m_coefsList.begin();
   attribute->m_nodeId=it->m_nodeId;
   attribute->m_index=it->m_index;
 	attribute->m_destId=it->m_destId;
-	attribute->m_genTime=it->m_genTime;
+	attribute->m_genTime=it->second.GetGenTime();
 	attribute->m_receptionNum=0
 	attribute->m_sendingNum=0
-  ncDatagram=nc;
+    ncDatagram=nc;
 }
 
 ~DecodedPacketStorage() {
@@ -935,11 +935,11 @@ NetworkCodedDatagram*
 void MyNCApp::Reduce (NetworkCodedDatagram& g)
 {
     MapType::iterator it;
-    std::map<std::string, PacketId>::iterator itr;
+    std::map<std::string, DecodedPacketStorage>::iterator itr;
 	std::vector<NetworkCodedDatagram*>::iterator bufItr;
-	if (!m_decodedList.empty ()) {
+	if (!m_decodedBuf.empty ()) {
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
-      itr = std::find (m_decodedBuf.begin(), m_decodedBuf.end(), (*it).second.GetPktId ());
+      itr = std::find (m_decodedBuf.begin(), m_decodedBuf.end(), (*it).first);
       if (itr!=m_decodedBuf.end()) {
         Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram> (*(itr->NCdatagram));
         nc.Product(it->coef);
@@ -1228,7 +1228,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         }
         if (m_myNodeId == it -> second.GetDestination()) { // We have received a packet at destination !!!!!
           //should change...
-          packetDelay += (now.GetMilliSeconds () - g->m_genTime);
+          packetDelay += (now.GetMilliSeconds () - it->second.GetGenTime());
           nReceivedPackets++;
           MyHeader removeHeader;
           packetIn->RemoveHeader(removeHeader);
@@ -1236,7 +1236,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           NS_LOG_UNCOND("packetIn->GetSize () = "<<packetIn->GetSize ()<<" nReceivedBytes = "<<nReceivedBytes<<"  nReceivedPacket = "<<nReceivedPackets<<" m_myNodeId = "<<m_myNodeId);
           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
           //should change and merge with above line...
-          NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetNanoSeconds () - g->m_genTime));
+          NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
         }
         Ptr<DecodedPacketStorage> dnc=CreateObject<DecodedPacketStorage();
         dnc->attribute.SetNodeId(it->second.GetNodeId());
