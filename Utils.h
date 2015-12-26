@@ -45,6 +45,7 @@ public:
 	uint32_t m_sendingNum;
 	uint32_t m_length;
 	NCAttribute();
+	NCAttribute(NCAttribute& );
 	NCAttribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
 	~NCAttribute ();
 	//member functions
@@ -56,6 +57,8 @@ public:
 	uint32_t GetGenTime () const;
 	void SetDestination (const uint8_t ip);
 	uint8_t GetDestination () const;
+	std::string Key();
+
 	bool operator==(const NCAttribute& p) const;
 	NCAttribute& operator= (const NCAttribute& p);
 };
@@ -123,9 +126,9 @@ public:
 	void SetDecoded();
 	void ResetDecoded ();
 	bool IsDecoded() const;
-	void Product(int coef);
-  void Sum (NetworkCodedDatagram& g);
-	void Minus (NetworkCodedDatagram& g);
+	void Product(int coef, galois::GaloisField *galois);
+  void Sum (NetworkCodedDatagram& g, galois::GaloisField *galois);
+	void Minus (NetworkCodedDatagram& g, galois::GaloisField *galois);
 };
 
 

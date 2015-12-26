@@ -156,7 +156,7 @@ public:
     // List containing packets to decode
   std::vector<NetworkCodedDatagram*> m_decodingBuf;
     // List containing decoded packets
-  std::map<std::string, DecodedPacketStorage*> m_decodedBuf;
+  std::map<std::string, Ptr<DecodedPacketStorage>> m_decodedBuf;
   //std::map<std::string, NCAttribute> m_decodedList;
   std::map<std::string, Ptr<NCAttribute>> m_varList;
   std::vector<Ptr<NCAttribute>> variableList; //List only used during the decoding for swapping columns

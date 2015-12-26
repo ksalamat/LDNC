@@ -1,4 +1,3 @@
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
@@ -176,7 +175,23 @@ LPMatrix::PrintMatrix (int m, int n, int nodeId) const
 
 NCAttribute::NCAttribute()
 {
+	m_nodeId=255;
+	m_index=0;
+	m_destId=0;
+	m_genTime=0;
+	m_receptionNum=0;
+	m_sendingNum=0;
+	m_length=0;
+}
 
+NCAttribute(NCAttribute& nc) {
+	m_nodeId=nc.m_nodeId;
+	m_index=nc.m_index;
+	m_destId=nc.m_destId;
+	m_genTime=nc.m_genTime;
+	m_receptionNum=nc.m_receptionNum;
+	m_sendingNum=nc.m_sendingNum;
+	m_length=nc.m_length;
 }
 
 NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_t Id, const uint32_t genTime)
@@ -185,26 +200,27 @@ NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_
 	m_index=index;
 	m_destId=Id;
 	m_genTime=genTime;
+	m_receptionNum=0;
+	m_sendingNum=0;
+	m_length=0;
 }
 
-NCAttribute::~NCAttribute ()
-{}
+NCAttribute::~NCAttribute (){
+
+}
 
 // implementation of NCAttribute methods
-uint8_t
-NCAttribute::GetIndex () const
+uint8_t NCAttribute::GetIndex () const
 {
 	return m_index;
 }
 
-void
-NCAttribute::SetIndex (int index)
+void NCAttribute::SetIndex (int index)
 {
 	m_index=index;
 }
 
-uint32_t
-NCAttribute::GetGenTime () const
+uint32_t NCAttribute::GetGenTime () const
 {
     return m_genTime;
 }
@@ -226,14 +242,12 @@ NCAttribute::SetNodeId (uint8_t nodeId)
 	m_nodeId=nodeId;
 }
 
-bool
-NCAttribute::operator==(const NCAttribute& p) const
+bool NCAttribute::operator==(const NCAttribute& p) const
 {
 	return m_nodeId==p.m_nodeId && m_index==p.m_index && m_destId==p.m_destId && m_genTime==p.m_genTime;
 }
 
-NCAttribute&
-NCAttribute::operator= (const NCAttribute& p)
+NCAttribute& NCAttribute::operator= (const NCAttribute& p)
 {
   m_nodeId=p.m_nodeId;
 	m_index=p.m_index;
@@ -242,16 +256,20 @@ NCAttribute::operator= (const NCAttribute& p)
 	m_length=p.m_length;
 	return *this;
 }
-void
-NCAttribute::SetDestination (uint8_t nodeId)
+void NCAttribute::SetDestination (uint8_t nodeId)
 {
 	m_destId=nodeId;
 }
 
-uint8_t
-NCAttribute::GetDestination () const
+uint8_t NCAttribute::GetDestination () const
 {
 	return m_destId;
+}
+
+std::string NCAttribute::Key()
+{
+	std::string str = StringConcat (m_nodeId, m_index);
+	return str;
 }
 
 
@@ -285,63 +303,53 @@ CoefElt::SetCoef (uint8_t coef)
 	m_coef=coef;
 }
 
-int
-CoefElt::GetIndex() const
+int CoefElt::GetIndex() const
 {
 	return m_index;
 }
 
-void
-CoefElt::SetIndex(int index)
+void CoefElt::SetIndex(int index)
 {
   m_index=index;
 }
 
-uint8_t
-CoefElt::GetNodeId ()
+uint8_t CoefElt::GetNodeId ()
 {
 	return m_nodeId;
 }
 
-void
-CoefElt::SetNodeId (uint8_t nodeId)
+void CoefElt::SetNodeId (uint8_t nodeId)
 {
 	m_nodeId = nodeId;
 }
 
-uint32_t
-CoefElt::GetGenTime () const
+uint32_t CoefElt::GetGenTime () const
 {
   return m_genTime;
 }
 
-void
-CoefElt::SetGenTime (uint32_t genTime)
+void CoefElt::SetGenTime (uint32_t genTime)
 {
   m_genTime=genTime;
 }
 
-void
-CoefElt::SetDestination (const uint8_t id)
+void CoefElt::SetDestination (const uint8_t id)
 {
 	m_destId = id;
 }
 
-uint8_t
-CoefElt::GetDestination () const
+uint8_t CoefElt::GetDestination () const
 {
 	return m_destId;
 }
 
-std::string
-CoefElt::Key()
+std::string CoefElt::Key()
 {
 	std::string str = StringConcat (m_nodeId, m_index);
 	return str;
 }
 
-NCAttribute
-CoefElt::GetAttribute () const
+NCAttribute CoefElt::GetAttribute () const
 {
 	NCAttribute pktAttribute (m_nodeId, m_index, m_destId, m_genTime);
 	return pktAttribute;
@@ -424,8 +432,7 @@ NetworkCodedDatagram::NetworkCodedDatagram (int index)
 	m_genTime = 0;
 }
 */
-NetworkCodedDatagram&
-NetworkCodedDatagram::operator= (const NetworkCodedDatagram& nc)
+NetworkCodedDatagram& NetworkCodedDatagram::operator= (const NetworkCodedDatagram& nc)
 {
   m_dataLength = nc.m_dataLength;
   m_index = nc.m_index;
@@ -441,8 +448,7 @@ NetworkCodedDatagram::operator= (const NetworkCodedDatagram& nc)
   return *this;
 }
 
-bool
-NetworkCodedDatagram::operator== (const NetworkCodedDatagram& nc) const
+bool NetworkCodedDatagram::operator== (const NetworkCodedDatagram& nc) const
 {
   MapType::iterator it, it2;
   MapType tmpMap, myMap;
@@ -522,52 +528,47 @@ NetworkCodedDatagram::IsDecoded() const
 
 // Validate and LineValidate must be implemented here :
 // Product implementations :
-void NetworkCodedDatagram::Product(int coef)
+void NetworkCodedDatagram::Product(int coef, galois::GaloisField *galois)
 {
   MapType::iterator it;
 
 	// handling the coefsList
 	for (it=m_coefsList.begin (); it!=m_coefsList.end (); it++)
 	  {
-		  ((*it).second). SetCoef (GaloisField::mul ((*it).second. GetCoef (), coef));
+		  ((*it).second). SetCoef (galois->mul ((*it).second. GetCoef (), coef));
 	  }
 }
 
 // Sum implementation :
-void NetworkCodedDatagram::Sum (NetworkCodedDatagram& g)
+void NetworkCodedDatagram::Sum (NetworkCodedDatagram& g, galois::GaloisField *galois)
 {
 	MapType::iterator it, itr;
-	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++)
-	  {
-		  itr = m_coefsList.find (it-> first);
-      if (itr!=m_coefsList.end ())
-		    {
-          (*itr).second. SetCoef (Galois::add ((*itr).second.GetCoef(),(*it).second.GetCoef()));
-          if ((*itr).second. GetCoef ()==0)
-            {
-              m_coefsList.erase (itr);
-            }
-        }
-		  else
-		    {
-          m_coefsList.insert(MapType::value_type(it-> first,(*it).second));
-		    }
-	  }
+	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
+		itr = m_coefsList.find (it-> first);
+    if (itr!=m_coefsList.end ()) {
+      (itr->second.SetCoef (galois->add (itr->second.GetCoef(),it->second.GetCoef()));
+      if (itr->second. GetCoef ()==0) {
+        m_coefsList.erase (itr);
+      }
+    } else {
+      m_coefsList.insert(MapType::value_type(it-> first,(*it).second));
+		}
+	}
 }
 
 // Minus Implementation :
-void NetworkCodedDatagram::Minus (NetworkCodedDatagram& g)
+void NetworkCodedDatagram::Minus (NetworkCodedDatagram& g, galois::GaloisField *galois)
 {
 	MapType::iterator it, itr;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
     itr = m_coefsList.find (it->first);
     if (itr!=m_coefsList.end ()) {
-      (*itr).second. SetCoef (Galois::sub ((*itr).second.GetCoef(),(*it).second.GetCoef()));
-      if ((*itr).second. GetCoef()==0) {
+      itr->second. SetCoef (galois->sub (itr->second.GetCoef(),it->second.GetCoef()));
+      if (itr->second. GetCoef()==0) {
         m_coefsList.erase (itr);
       }
     } else {
-      m_coefsList.insert(MapType::value_type((*it).first,(*it).second));
+      m_coefsList.insert(MapType::value_type(it->first,it->second));
     }
   }
 }
