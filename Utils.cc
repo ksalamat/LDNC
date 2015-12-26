@@ -133,7 +133,7 @@ LPMatrix::~LPMatrix()
 {}
 
 void
-LPMatrix::SetDimentions (int m, int n)
+LPMatrix::SetDimensions (int m, int n)
 {
 	d1=m;
 	d2=n;
@@ -235,10 +235,11 @@ NCAttribute::operator==(const NCAttribute& p) const
 NCAttribute&
 NCAttribute::operator= (const NCAttribute& p)
 {
-    m_nodeId=p.m_nodeId;
+  m_nodeId=p.m_nodeId;
 	m_index=p.m_index;
 	m_destId= p.m_destId;
 	m_genTime= p.m_genTime;
+	m_length=p.m_length;
 	return *this;
 }
 void

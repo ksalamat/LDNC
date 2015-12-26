@@ -34,7 +34,7 @@ public:
 	void PrintMatrix (int m, int n, int nodeId) const;
 };
 
-class NCAttribute {
+class NCAttribute : public ns3::Object {
 	// data members
 public:
 	uint8_t m_nodeId;
@@ -43,6 +43,7 @@ public:
 	uint32_t m_genTime;
 	uint32_t m_receptionNum;
 	uint32_t m_sendingNum;
+	uint32_t m_length;
 	NCAttribute();
 	NCAttribute (const uint8_t nodeId,const int8_t index,const uint8_t id, const uint32_t genTime);
 	~NCAttribute ();
@@ -123,7 +124,7 @@ public:
 	void ResetDecoded ();
 	bool IsDecoded() const;
 	void Product(int coef);
-    void Sum (NetworkCodedDatagram& g);
+  void Sum (NetworkCodedDatagram& g);
 	void Minus (NetworkCodedDatagram& g);
 };
 
@@ -136,7 +137,7 @@ public:
 	LPMatrix ();
 	LPMatrix(int, int); //Constructor will only create the space here LLL
 	~LPMatrix();
-	void SetDimentions (int, int);
+	void SetDimensions (int, int);
 	void SetValue(int, int, double); // first two args are element position specifiers.
 	double	GetValue (int i, int j) const;
 	void PrintMatrix (int m, int n, int nodeId) const;

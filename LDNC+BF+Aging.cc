@@ -982,14 +982,15 @@ MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
-    MapType::iterator it;
-    std::map<std::string, NCAttribute>::iterator itr;
+  MapType::iterator it;
+  std::map<std::string, NCAttribute>::iterator itr;
 	std::map<std::string, DecodedPacketStorage>::iterator itr2;
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
       itr = std::find (m_varList.begin(), m_varList.end(), (*it).first);
       itr2 = std::find(m_decodedBuf.begin(),m_decodedBuf.end(),(*it).first);
       if (itr==m_varList.end() && itr2==m_decodedBuf.end()) {
-          m_varList.push_back ((*it).second.GetAttribute ());
+          m_varList.insert(it->first, it->second.GetAttribute ());
+          variableList.push_back(it->second);
       }
   }
 }
@@ -1123,11 +1124,11 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
     {
       // swap column in var_list
       // L : # of rows
-      std:string id;
+      Ptr<NCAttribute> ptr ;
 
-      id = variableList[col1];
+      ptr = variableList[col1];
       variableList[col1] = variableList[col2];
-      variableList[col2] = id;
+      variableList[col2] = ptr;
      // swap column in coefficient matrix
       for(int l = 0; l < L; l++)
         {
@@ -1180,26 +1181,26 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         }
     }
   //Check if one variable have been determined
-  std:string pktId;
+  Ptr<NCAttribute> ptr;
   for (i=M;i>=1;i--) {
     solved=true;
     // Prepare the NCdatagram
     m_decodingBuf[i-1]->m_coefsList.clear();
     coef.SetCoef(m_matrix.GetValue(i-1, i-1));
-    pktId=variableList[i-1];
-    coef.SetIndex(m_varList[pktId]. GetIndex());
-    coef.SetNodeId(m_varList[pktId]. GetNodeId ());
-    coef.SetDestination (m_varList[pktId]. GetDestination());
-    coef.SetGenTime(m_varList[pktId].GetGenTime());
+    ptr=variableList[i-1];
+    coef.SetIndex(ptr-> GetIndex());
+    coef.SetNodeId(ptr-> GetNodeId ());
+    coef.SetDestination (ptr-> GetDestination());
+    coef.SetGenTime(ptr->GetGenTime());
     m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
     for (j=i;j<N;j++) {
       if (m_matrix.GetValue(i-1, j)!=0){
         solved=false;
         coef.SetCoef(m_matrix.GetValue(i-1, j));
-        pktId=variableList[j];
-        coef.SetIndex(m_varList[pktId].GetIndex());
-        coef.SetNodeId(m_varList[pktId].GetNodeId ());
-        coef.SetDestination (m_varList[pktId]. GetDestination());
+        ptr=variableList[j];
+        coef.SetIndex(ptr->GetIndex());
+        coef.SetNodeId(ptr->GetNodeId ());
+        coef.SetDestination (ptr-> GetDestination());
         m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
       }
     }
@@ -1274,11 +1275,8 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
   NS_LOG_UNCOND("t = "<<Simulator::Now ().GetSeconds()<<"	nodeId = "<<m_myNodeId<<" End Of ES");
 }
 
-void
-MyNCApp::Decode (NetworkCodedDatagram* g, Ptr<Packet> packetIn)
-{
-	std::vector<NetworkCodedDatagram*>::iterator bufItr;
-	MapType::iterator ii2;
+void MyNCApp::Decode (NetworkCodedDatagram* g, Ptr<Packet> packetIn) {
+	std::map<std::string, Ptr<NCdatagram>>::iterator it;
 	// received packet validity check
   //int tmpNumCoef=g->m_coefsList.size();
   m_rcvCounter++;
@@ -1303,6 +1301,7 @@ MyNCApp::Decode (NetworkCodedDatagram* g, Ptr<Packet> packetIn)
   if (M>N) {
     NS_LOG_UNCOND("Fatal error !");
   }
+
   GenerateMatrix ();
   // L: column length (Number of variables+size of payload)
   //   L = N + MDU;
