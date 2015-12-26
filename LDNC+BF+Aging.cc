@@ -57,6 +57,7 @@ static const std::size_t MAX_VARLIST_SIZE = 50;
 static const std::size_t MaxNumberOfCoeff=5;
 static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
 static const std::size_t DECODED_BUFF_SIZE = 200;
+static const float NEIGHBOR_TIMER = 1.5;
 /*static const double BEACON_PERIOD = 1;
 static const double FORWARD_PERIOD = 0.08;
 static const double SIMULATION_TIME = 3600;
@@ -367,7 +368,7 @@ Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predict
 
 
 DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
-  mapType::iterator it=nc->m_coefsList.begin();
+  MapType::iterator it=nc->m_coefsList.begin();
   attribute->m_nodeId=it->m_nodeId;
   attribute->m_index=it->m_index;
 	attribute->m_destId=it->m_destId;
@@ -377,7 +378,7 @@ DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
     ncDatagram=nc;
 }
 
-~DecodedPacketStorage() {
+DecodedPacketStorage::~DecodedPacketStorage() {
 
 }
 
@@ -481,13 +482,13 @@ MyNCApp::GenerateBeacon ()
   beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
-	std::map<std::string, Ptr<NCAttribute>>::iterator itr;
+	std::map<std::string, Ptr<NCAttribute> >::iterator itr;
 	for (itr=m_varList.begin();itr!=m_varList.end();itr++)
 	{
 	    //No No ! we insert string in BFs !!!
 		tempFilter1->insert(itr->first);
 	}
-	std::map<std::string, DecodedPacketStorage>::iterator itr2;
+	std::map<std::string, DecodedPacketStorage*>::iterator itr2;
 	for (itr2=m_decodedBuf.begin(); itr2!=m_decodedBuf.end(); itr2++)
 	{
 	    //No No ! we insert string in BFs !!!
@@ -545,7 +546,7 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 	bool newNeighbor = true;
 	Time now = Simulator::Now ();
 	std::list<Neighbor>::iterator listIterator;
-	std::string tmpStr =Str;
+	std::string tmpStr;
 	if (!m_neighborhood.empty()) {
 		for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
 			if(listIterator->neighborId == header.GetNodeId ()) {
@@ -661,7 +662,7 @@ void MyNCApp::Forward ()
 		std::string tmpStr;
 		if (!m_decodedBuf.empty () || !m_decodingBuf.empty()) {
 			Ptr<NetworkCodedDatagram> tmpEncDatagram;
-			tmpEncDatagram = CreateObject<NetworkCodedDatagram()>;
+			tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
 			tmpEncDatagram = Encode();
 			if (tmpEncDatagram!= NULL && !tmpEncDatagram->IsNull())
 			{
@@ -693,7 +694,7 @@ void MyNCApp::Forward ()
 				Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
 				Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
 				std::string tmpStr;
-				std::map<std::string, NCAttribute>::iterator itr;
+				std::map<std::string, Ptr<NCAttribute> >::iterator itr;
 	      for (itr=m_varList.begin();itr!=m_varList.end();itr++) {
           tempFilter1->insert(itr->first);
         }

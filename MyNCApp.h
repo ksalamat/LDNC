@@ -125,7 +125,7 @@ public:
   void PermuteCol(int col1, int col2, int L);
   void PermuteLine(int lin1, int lin2, int L);
   void ExtractSolved(uint32_t M, uint32_t N, Ptr<Packet> packetIn);
-  void Decode(NetworkCodedDatagram* g, Ptr<Packet> packetIn);
+  void Decode(Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn);
   //Specific to SourceNode
   void CheckWaitingList (std::list<Neighbor>::iterator);
   void MakeSource();
