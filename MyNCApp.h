@@ -99,7 +99,7 @@ public :
   DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc);
   ~DecodedPacketStorage();
   NCAttribute attribute;
-  NetworkCodedDatagram* ncDatagram;
+  Ptr<NetworkCodedDatagram> ncDatagram;
 };
 
 class MyNCApp : public Application

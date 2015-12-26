@@ -779,7 +779,7 @@ Ptr<NetworkCodedDatagram>
 					m_lpMatrix.SetValue(index,i,1);
 				}
 			}
-      i++
+      i++;
 		}//for loop over decoded packets
 			//now let's iterate over the decodingList
 		for (uint16_t i=0; i< len-L; i++)
@@ -787,7 +787,7 @@ Ptr<NetworkCodedDatagram>
 		    //line below should change...
 			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
 			MapType::iterator it;
-			std::map<std::string, NCAttribute>::iterator itr;
+			std::map<std::string, Ptr<NCAttribute> >::iterator itr;
 			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++)
 			{
 				itr = std::find (m_varList.begin(), m_varList.end(), it->first);
@@ -963,7 +963,7 @@ int
 MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 {
 	MapType::iterator it;
-	std::vector<std::string, NCAttribute>::iterator itr,itr2;
+	std::vector<std::string, Ptr<NCAttribute> >::iterator itr,itr2;
 
 	int newVar=0;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
@@ -983,7 +983,7 @@ void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
-  std::map<std::string, NCAttribute>::iterator itr;
+  std::map<std::string, Ptr<NCAttribute> >::iterator itr;
 	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
     itr = std::find (m_varList.begin(), m_varList.end(), (*it).first);
@@ -1004,7 +1004,7 @@ void MyNCApp::GenerateMatrix ()
 	m_matrix.A.clear ();
   std::map<std::string, Ptr<DecodedPacketStorage> >::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
-  std::vector<NCAttribute>::iterator varLstItr;
+  std::vector<Ptr<NCAttribute> >::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
 	g =  CreateObject<NetworkCodedDatagram> ();
 	// Number of variables
@@ -1170,7 +1170,6 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
   MapType::iterator it,it2, it4;
   //std::vector<NCAttribute>::iterator it3;
   CoefElt coef;
-  NCAttribute id;
   bool solved=true;
   Ptr<NetworkCodedDatagram> g;
   g= CreateObject<NetworkCodedDatagram>();
