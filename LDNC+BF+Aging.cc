@@ -1420,7 +1420,11 @@ void MyNCApp::PacketInjector ()
 		NetworkCodedDatagram *p;
 		p= new NetworkCodedDatagram();
 		p=m_buffer.back();
-		m_decodedBuf.push_back(p);
+		DecodedPacketStorage* q;
+		q.NCdatagram=p;
+        q.attribute (p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
+                     p->m_coefsList.begin()->second.GetDestination, p->m_coefsList.begin()->second.GetGenTime());
+		m_decodedBuf.push_back(q);
 		m_buffer.pop_back();
 		WaitingListMember waitElm;
 		Time now = Simulator::Now ();
