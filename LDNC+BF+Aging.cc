@@ -369,12 +369,12 @@ Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predict
 
 DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
   MapType::iterator it=nc->m_coefsList.begin();
-  attribute.m_nodeId=it->m_nodeId;
-  attribute.m_index=it->m_index;
-	attribute.m_destId=it->m_destId;
+  attribute.m_nodeId=it->second.m_nodeId;
+  attribute.m_index=it->second.m_index;
+	attribute.m_destId=it->second.m_destId;
 	attribute.m_genTime=it->second.GetGenTime();
-	attribute.m_receptionNum=0
-	attribute.m_sendingNum=0
+	attribute.m_receptionNum=0;
+	attribute.m_sendingNum=0;
   ncDatagram=nc;
 }
 
@@ -629,7 +629,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one datagram in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
 		if (m_decodingBuf.size() < DECODING_BUFF_SIZE)
 		{
-			Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram()>;
+			Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
 			CoefElt coef;
 			std::string tmpStr;
 			std::string colon = ":";
@@ -698,7 +698,7 @@ void MyNCApp::Forward ()
 	      for (itr=m_varList.begin();itr!=m_varList.end();itr++) {
           tempFilter1->insert(itr->first);
         }
-	      std::map<std::string, DecodedPacketStorage>::iterator itr2;
+	      std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
 	      for (itr2=m_decodedBuf.begin(); itr2!=m_decodedBuf.end(); itr2++)
 	      {
 	        tempFilter2->insert(itr2->first);
@@ -755,7 +755,7 @@ Ptr<NetworkCodedDatagram>
 	for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
     B.at(index)=listIterator->neighborRemainingCapacity;
 		//let's first iterate over the decoded packets
-	  std::map<std::string, DecodedPacketStorage>::iterator itr;
+	  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
 
 		for (int i=0, itr=m_decodedBuf.begin();itr!=m_decodedBuf.end(); i++, itr++)
 		{
@@ -983,7 +983,7 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
   std::map<std::string, NCAttribute>::iterator itr;
-	std::map<std::string, DecodedPacketStorage>::iterator itr2;
+	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
     itr = std::find (m_varList.begin(), m_varList.end(), (*it).first);
     itr2 = std::find(m_decodedBuf.begin(),m_decodedBuf.end(),(*it).first);
@@ -1001,7 +1001,7 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 void MyNCApp::GenerateMatrix ()
 {
 	m_matrix.A.clear ();
-  std::map<std::string, DecodedPacketStorage*>::iterator bufItr;
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
   std::vector<NCAttribute>::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
@@ -1248,7 +1248,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           //should change and merge with above line...
           NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
         }
-        Ptr<DecodedPacketStorage> dnc=CreateObject<DecodedPacketStorage();
+        Ptr<DecodedPacketStorage> dnc=CreateObject<DecodedPacketStorage>();
         dnc->attribute.SetNodeId(it->second.GetNodeId());
         dnc->attribute.SetIndex(it->second.GetIndex());
         dnc->attribute.SetDestination(it->second.GetDestination());
@@ -1411,7 +1411,7 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 
 void MyNCApp::RemoveOldest ()
 {
-  std::map<std::string, DecodedPacketStorage*> :iterator pointToOldest, it;
+  std::map<std::string, Ptr<DecodedPacketStorage> > :iterator pointToOldest, it;
   pointToOldest = m_decodedBuf.begin(); //;
   for (it= ++m_decodedBuf.begin(); it!=m_decodedBuf.end(); it++){
       if (it->second.attribute.GetGenTime() > pointToOldest->second.attribute.GetGenTime()) {
@@ -1431,9 +1431,9 @@ void MyNCApp::PacketInjector ()
 		NetworkCodedDatagram *p;
 		p= Ptr<NetworkCodedDatagram>();
 		p=m_buffer.back();
-		DecodedPacketStorage* q;
-		q.NCdatagram=p;
-    q.attribute (p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
+		Ptr<DecodedPacketStorage> q;
+		q->NCdatagram=p;
+    q->attribute (p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
                      p->m_coefsList.begin()->second.GetDestination, p->m_coefsList.begin()->second.GetGenTime());
 		m_decodedBuf.push_back(q);
 		m_buffer.pop_back();
