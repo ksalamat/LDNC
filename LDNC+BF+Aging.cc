@@ -879,7 +879,6 @@ Ptr<NetworkCodedDatagram>
 		double objective= glp_get_obj_val(myLpProblem);
 		if (objective>0.0) {
 			std::vector<double> probabilities(l);
-			std::vector<double>::iterator it;
 			for(int i=0; i<l;i++)
 			{
 				probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
