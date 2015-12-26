@@ -69,7 +69,7 @@ Matrix::~Matrix()
 {}
 
 void
-Matrix::SetDimentions (int m, int n)
+Matrix::SetDimensions (int m, int n)
 {
 	d1=m;
 	d2=n;
@@ -240,12 +240,6 @@ NCAttribute::GetDestination () const
 	return m_destId;
 }
 
-
-
-
-
-
-
 // CoefElt Empty Constructor
 CoefElt::CoefElt ()
 {}
@@ -313,18 +307,6 @@ CoefElt::SetGenTime (uint32_t genTime)
 }
 
 void
-CoefElt::SetSource (const Ipv4Address& ip)
-{
-	m_srcIp = ip;
-}
-
-Ipv4Address
-CoefElt::GetSource () const
-{
-	return m_srcIp;
-}
-
-void
 CoefElt::SetDestination (const uint8_t id)
 {
 	m_destId = id;
@@ -373,11 +355,6 @@ CoefElt::operator= (const CoefElt& coef)
 	return *this;
 }
 
-
-
-
-
-
 // NetworkCodedDatagram Constructors
 NetworkCodedDatagram::NetworkCodedDatagram ()
 {
@@ -399,6 +376,14 @@ NetworkCodedDatagram::NetworkCodedDatagram ()
   //}
 	m_coefsList. clear ();
 }
+
+NetworkCodedDatagram (NetworkCodedDatagram& nc) {
+	m_dataLength=nc.m_dataLength;
+	m_index=nc.m_index;
+	m_decoded=nc.m_decoded;
+	m_coefsList=nc.m_coefsList;
+}
+
 /*
 NetworkCodedDatagram::NetworkCodedDatagram (int index)
 {
@@ -461,7 +446,6 @@ NetworkCodedDatagram::operator== (const NetworkCodedDatagram& nc) const
 // NetworkCodedDatagram Destructor
 NetworkCodedDatagram::~NetworkCodedDatagram ()
 {
-    //delete m_galoisField;
 }
 
 // NetworkCodedDatagram Methods
@@ -522,21 +506,19 @@ NetworkCodedDatagram::IsDecoded() const
 
 // Validate and LineValidate must be implemented here :
 // Product implementations :
-void
-NetworkCodedDatagram::Product(int coef, galois::GaloisField *galois)
+void NetworkCodedDatagram::Product(int coef)
 {
   MapType::iterator it;
 
 	// handling the coefsList
 	for (it=m_coefsList.begin (); it!=m_coefsList.end (); it++)
 	  {
-		  ((*it).second). SetCoef (galois->mul ((*it).second. GetCoef (), coef));
+		  ((*it).second). SetCoef (GaloisField::mul ((*it).second. GetCoef (), coef));
 	  }
 }
 
 // Sum implementation :
-void
-NetworkCodedDatagram::Sum (NetworkCodedDatagram& g, galois::GaloisField *galois)
+void NetworkCodedDatagram::Sum (NetworkCodedDatagram& g)
 {
 	MapType::iterator it, itr;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++)
@@ -544,7 +526,7 @@ NetworkCodedDatagram::Sum (NetworkCodedDatagram& g, galois::GaloisField *galois)
 		  itr = m_coefsList.find (it-> first);
       if (itr!=m_coefsList.end ())
 		    {
-          (*itr).second. SetCoef (galois->add ((*itr).second.GetCoef(),(*it).second.GetCoef()));
+          (*itr).second. SetCoef (Galois::add ((*itr).second.GetCoef(),(*it).second.GetCoef()));
           if ((*itr).second. GetCoef ()==0)
             {
               m_coefsList.erase (itr);
@@ -558,24 +540,18 @@ NetworkCodedDatagram::Sum (NetworkCodedDatagram& g, galois::GaloisField *galois)
 }
 
 // Minus Implementation :
-void
-NetworkCodedDatagram::Minus (NetworkCodedDatagram& g, galois::GaloisField *galois)
+void NetworkCodedDatagram::Minus (NetworkCodedDatagram& g)
 {
 	MapType::iterator it, itr;
-	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++)
-    {
-      itr = m_coefsList.find (it->first);
-      if (itr!=m_coefsList.end ())
-        {
-          (*itr).second. SetCoef (galois->sub ((*itr).second.GetCoef(),(*it).second.GetCoef()));
-          if ((*itr).second. GetCoef()==0)
-            {
-              m_coefsList.erase (itr);
-            }
-        }
-      else
-        {
-          m_coefsList.insert(MapType::value_type((*it).first,(*it).second));
-        }
+	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
+    itr = m_coefsList.find (it->first);
+    if (itr!=m_coefsList.end ()) {
+      (*itr).second. SetCoef (Galois::sub ((*itr).second.GetCoef(),(*it).second.GetCoef()));
+      if ((*itr).second. GetCoef()==0) {
+        m_coefsList.erase (itr);
+      }
+    } else {
+      m_coefsList.insert(MapType::value_type((*it).first,(*it).second));
     }
+  }
 }

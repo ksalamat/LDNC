@@ -87,11 +87,6 @@ Neighbor::Neighbor ()
   neighborhoodSize = 0;
   neighborDecodingBufSize = 0;
   neighborRemainingCapacity = 0;
-  sourceForwarded.clear();
-  neighborNotSolvedVars.clear();
-  neighborSolvedVars.clear();
-  neighborDecodedListUtilities.clear();
-  neighborVarListUtilities.clear();
 }
 
 Neighbor::~Neighbor ()
@@ -100,7 +95,6 @@ Neighbor::~Neighbor ()
 MyHeader::MyHeader ()
 {
   m_packetType = 0;
-  m_time = 0;
   m_nodeId = 0;
   m_linCombSize = 0;
   m_neighborhoodSize = 0;
@@ -267,12 +261,6 @@ MyHeader::SetNodeId (uint8_t id)
 }
 
 void
-MyHeader::SetTime (uint32_t time)
-{
-    m_time=time;
-}
-
-void
 MyHeader::SetNeighborhoodSize (uint8_t size)
 {
     m_neighborhoodSize = size;
@@ -382,6 +370,21 @@ Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predict
     return filterPointer;
 }
 
+
+DecodedPacketStorage::DecodedPacketStorage(NetworkCodedDatagram* nc){
+  mapType::iterator it=nc->coefsList.begin();
+  attribute->m_nodeId=it->m_nodeId;
+  attribute->m_index=it->m_index;
+	attribute->m_destId=it->m_destId;
+	attribute->m_genTime=it->m_genTime;
+	attribute->m_receptionNum=0
+	attribute->m_sendingNum=0
+  ncDatagram=nc;
+}
+
+~DecodedPacketStorage() {
+
+}
 
 
 MyNCApp::MyNCApp(): Application()
@@ -669,7 +672,6 @@ void MyNCApp::Forward ()
 				lcHeader.SetNodeId (m_myNodeId);
 				lcHeader.SetPacketType (1);
 				//should change: each var should have its own genTime
-				lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
 				MapType::iterator it;
 				std::stringstream ss;
 				ss << m_myNodeId;
@@ -780,7 +782,7 @@ NetworkCodedDatagram*
 		{
 			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
 			MapType::iterator it;
-			std::vector<PacketId>::iterator itr;//,itr2;
+			std::map<std::string, NCAttribute>::iterator itr;
 			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++)
 			{
 				itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
@@ -933,34 +935,28 @@ NetworkCodedDatagram*
 	return NULL;
 }
 
-void
-MyNCApp::Reduce (NetworkCodedDatagram& g)
+void MyNCApp::Reduce (NetworkCodedDatagram& g)
 {
 	MapType::iterator it;
-    std::vector<PacketId>::iterator itr;
+  std::map<std::string, PacketId>::iterator itr;
 	std::vector<NetworkCodedDatagram*>::iterator bufItr;
-	if (!m_decodedList.empty ())
-	  {
-        while (it!=g.m_coefsList.end ())
-          {
-            for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++)
-              {
-                itr = std::find (m_decodedList.begin(), m_decodedList.end(), (*it).second.GetPktId ());
-                if (itr!=m_decodedList.end())
-                  {
-                    g.m_coefsList.erase (it);
-                    break;
-                 }
-              }
-          }
-	  }
+	if (!m_decodedList.empty ()) {
+    for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
+      itr = std::find (m_decodedBuf.begin(), m_decodedBuf.end(), (*it).second.GetPktId ());
+      if (itr!=m_decodedBuf.end()) {
+        Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram> (*(itr->NCdatagram));
+        nc.Product(it->coef);
+        g.Minus(nc);
+      }
+    }
+  }
 }
 
 int
 MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 {
 	MapType::iterator it;
-	std::vector<PacketId>::iterator itr,itr2;
+	std::vector<std::string, NCAttribute>::iterator itr,itr2;
 	int newVar=0;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
 		itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
@@ -979,7 +975,7 @@ void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
-  std::vector<PacketId>::iterator itr,itr2;
+  std::map<std::string, NCAttribute>::iterator itr,itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
       itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
       itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
@@ -992,45 +988,33 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 void
 MyNCApp::GenerateMatrix ()
 {
-	m_matrix. A. clear ();
-    std::vector<NetworkCodedDatagram*>::iterator bufItr;
+	m_matrix.A.clear ();
+  std::map<std::string, DecodedPacketStorage*>::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
-    std::vector<PacketId>::iterator varLstItr;
-	NetworkCodedDatagram* g;
-	g = new NetworkCodedDatagram();
+  Ptr<NetworkCodedDatagram> g;
 
 	// Number of variables
 	int N = m_varList.size();
   // Number of equations
 	int M = m_decodingBuf.size();
 	int pos=0;
-  NS_LOG_UNCOND("IN GENERATEMATRIX	"<<"nodeId" <<m_myNodeId<<" M = m_decodingBuf.size() is : "<< m_decodingBuf.size()<< " and N = m_varList.size() is : "<<m_varList.size());
-  if (M>N)
-	  {
+  if (M>N) {
       NS_LOG_UNCOND ("# of equations > # of variables !");
-	  }
-	m_matrix.SetDimentions (M, N);
-	int i=0;
-	for (bufItr=m_decodingBuf.begin (); bufItr!=m_decodingBuf.end (); bufItr++)
-	  {
-      g=*bufItr;
-		  /*for (it=g-> m_coefsList. begin(); it!=g-> m_coefsList.end(); it++)
-		    {
-          NS_LOG_UNCOND ("in GM for "<<" nodeId= "<<m_myNodeId<<"		"<<it->first<<" coef="<<(int)it->second. GetCoef()<<" destIp= "<<it->second. GetDestination());
-		    }*/
+	}
+	m_matrix.SetDimensions (M, N);
+
+	for (int i=0, bufItr=m_decodingBuf.begin (); bufItr!=m_decodingBuf.end (); bufItr++,i++) {
+      g=bufItr;
       for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++)
         {
           varLstItr = std::find (m_varList.begin(), m_varList.end(), (*coefsLstItr).second.GetPktId ());
           pos = varLstItr - m_varList.begin ();
-          if (varLstItr==m_varList.end())
-            {
+          if (varLstItr==m_varList.end()) {
               NS_LOG_UNCOND ("ERROR in GenerateMatrix");
-            }
+          }
           m_matrix.SetValue (i,pos, (*coefsLstItr).second.GetCoef ());
         }
-		  i++;
 	  }
-    //m_matrix. PrintMatrix (M,N, m_myNodeId);
 }
 
 int
@@ -1041,29 +1025,23 @@ MyNCApp::GausElim (int M, int N, Ptr<Packet> packetIn)
   int pivot;
   m_rank=0;
   // Main Loop : # of iteration = # of lines
-  for(k = 0; k < M ; k++)
-    {
-      // if pivot is zero, we need to swap
-      bool swp = false;
+  for(k = 0; k < M ; k++) {
+    // if pivot is zero, we need to swap
+    bool swp = false;
+    while(!swp) {
       // first check if we can exchange with a column larger than k
-      while(!swp)
-        {
-          if(m_matrix.GetValue(k, k) == 0)
-            {
-              // if the pivot is zero we should exchange line or column order !
-              for(n = k+1 ; n < N ; n++)
-                {
-                  if(m_matrix.GetValue(k, n) != 0)
-                    {
-                      // we have found a column for exchange. Let's swap.
-                      // Caution: when swapping column we have to take care of m_varList!
-                      PermuteCol(k, n, M);
-                      swp = true;
-                      break;
-                    }
-                }
-              if (!swp)
-                {
+      if(m_matrix.GetValue(k, k) == 0) {
+        // if the pivot is zero we should exchange line or column order !
+        for(n = k+1 ; n < N ; n++){
+            if(m_matrix.GetValue(k, n) != 0) {
+              // we have found a column for exchange. Let's swap.
+              // Caution: when swapping column we have to take care of m_varList!
+              PermuteCol(k, n, M);
+              swp = true;
+              break;
+            }
+          }
+          if (!swp) {
                   // We have a full zero line = an equation is linearly dependent !
                   // we have to remove it !
                   nDuplicateRec++;
@@ -1134,10 +1112,11 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
     {
       // swap column in var_list
       // L : # of rows
-      PacketId id;
-      id = m_varList[col1];
-      m_varList[col1] = m_varList[col2];
-      m_varList[col2] = id;
+      std:string id;
+
+      id = variableList[col1];
+      variableList[col1] = variableList[col2];
+      variableList[col2] = id;
       // swap column in coefficient matrix
       for(int l = 0; l < L; l++)
         {
@@ -1177,12 +1156,12 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
   uint32_t i,j,k,l,upPivot;
   MapType::iterator it,it2, it4;
   std::vector<PacketId>::iterator it3;
-  std::vector<NetworkCodedDatagram*>::iterator bufItr;
+  std::vector<Ptr<NetworkCodedDatagram>>::iterator bufItr;
   CoefElt coef;
   PacketId id;
   bool solved=true;
-  NetworkCodedDatagram* g;
-  g= new NetworkCodedDatagram();
+  Ptr<NetworkCodedDatagram> g;
+  g= CreateObject<NetworkCodedDatagram>();
   if (M < m_decodingBuf.size())
     {
       for (i=M;i<m_decodingBuf.size();i++)
@@ -1191,112 +1170,97 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         }
     }
   //Check if one variable have been determined
-  for (i=M;i>=1;i--)
-    {
-      solved=true;
-      // Prepare the NCdatagram
-      m_decodingBuf[i-1]->m_coefsList.clear();
-      coef.SetCoef(m_matrix.GetValue(i-1, i-1));
-      coef.SetIndex(m_varList[i-1]. GetIndex());
-      coef.SetNodeId(m_varList[i-1]. GetNodeId ());
-      coef.SetDestination (m_varList[i-1]. GetDestination());
-      coef.SetGenTime(m_varList[i-1].GetGenTime());
-      m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
-      for (j=i;j<N;j++)
-        {
-          if (m_matrix.GetValue(i-1, j)!=0)
-            {
-              solved=false;
-              coef.SetCoef(m_matrix.GetValue(i-1, j));
-              coef.SetIndex(m_varList[j].GetIndex());
-              coef.SetNodeId(m_varList[j].GetNodeId ());
-              coef.SetDestination (m_varList[j]. GetDestination());
-              m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
-            }
+  std:string pktId;
+  for (i=M;i>=1;i--) {
+    solved=true;
+    // Prepare the NCdatagram
+    m_decodingBuf[i-1]->m_coefsList.clear();
+    coef.SetCoef(m_matrix.GetValue(i-1, i-1));
+    pktId=variableList[i-1];
+    coef.SetIndex(m_varList[pktId]. GetIndex());
+    coef.SetNodeId(m_varList[pktId]. GetNodeId ());
+    coef.SetDestination (m_varList[pktId]. GetDestination());
+    coef.SetGenTime(m_varList[pktId].GetGenTime());
+    m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+    for (j=i;j<N;j++) {
+      if (m_matrix.GetValue(i-1, j)!=0){
+        solved=false;
+        coef.SetCoef(m_matrix.GetValue(i-1, j));
+        pktId=variableList[j];
+        coef.SetIndex(m_varList[pktId].GetIndex());
+        coef.SetNodeId(m_varList[pktId].GetNodeId ());
+        coef.SetDestination (m_varList[pktId]. GetDestination());
+        m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+      }
+    }
+    if (solved){
+      // a variable has been solved
+      // First propagate this info in higher lines (equations)
+      for (k=i-1;k>=1;k--){
+        // make the value up the pivot equal zero
+        //NS_LOG_UNCOND("k is : "<<k<<" i is :"<<i<<"M="<<M<<"  "<<"N="<<N);
+        upPivot = m_matrix.GetValue(k-1, i-1);
+        if (upPivot!=0) {
+          for(l = k; l < N ; l++) {
+            //Column index
+            m_matrix.SetValue(k-1, l, GaloisField::sub(m_matrix.GetValue(k-1, l), m_nodeGaloisField->mul(upPivot, m_matrix.GetValue(i-1,l))));
+          }
         }
-      if (solved)
-        {
-          // a variable has been solved
-          // First propagate this info in higher lines (equations)
-          for (k=i-1;k>=1;k--)
-            {
-              // make the value up the pivot equal zero
-              //NS_LOG_UNCOND("k is : "<<k<<" i is :"<<i<<"M="<<M<<"  "<<"N="<<N);
-              upPivot = m_matrix.GetValue(k-1, i-1);
-              if (upPivot!=0)
-                {
-                  for(l = k; l < N ; l++)
-                    {
-                      //Column index
-                      m_matrix.SetValue(k-1, l, m_nodeGaloisField->sub(m_matrix.GetValue(k-1, l), m_nodeGaloisField->mul(upPivot, m_matrix.GetValue(i-1,l))));
-                    }
-                }
-            }
-          //NS_LOG_UNCOND ("After ExtractSolved");
-          //m_matrix.PrintMatrix(M,N,m_myNodeId);
+      }
+      //NS_LOG_UNCOND ("After ExtractSolved");
+      //m_matrix.PrintMatrix(M,N,m_myNodeId);
 
-          // Transfer the decoded packet to decodedbuffer;
-          if (m_decodedBuf.size() < DECODED_BUFF_SIZE)
-            {
-              g = m_decodingBuf[i-1];
-              Time now = Simulator::Now ();
-              it = g -> m_coefsList.begin();
-              if (m_myNCAppIp != it -> second.GetSource())
-                {
-                  for (bufItr= m_decodedBuf.begin() ; bufItr!=m_decodedBuf.end() ; bufItr++)
-                    {
-                      it4 = (*bufItr)-> m_coefsList.begin();
-                      if (it4->first == it -> first )
-                        {
-                          break;
-                        }
-                    }
-                  if (bufItr == m_decodedBuf.end())
-                    {
-                      if (m_myNodeId == it -> second.GetDestination()) // We have received a packet at destination !!!!!
-                        {
-                          //should change...
-                          packetDelay += (now.GetNanoSeconds () - g->m_genTime);
-                          nReceivedPackets++;
-                          MyHeader removeHeader;
-                          packetIn->RemoveHeader(removeHeader);
-                          nReceivedBytes += packetIn->GetSize ();
-                          NS_LOG_UNCOND("packetIn->GetSize () = "<<packetIn->GetSize ()<<" nReceivedBytes = "<<nReceivedBytes<<"  nReceivedPacket = "<<nReceivedPackets<<" m_myNodeId = "<<m_myNodeId);
-                          NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
-                          //should change and merge with above line...
-                          NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetNanoSeconds () - g->m_genTime));
-                        }
-                      m_decodedBuf.push_back(g);
-                      if (g->m_coefsList.size() !=1)
-                        {
-                          NS_LOG_UNCOND("Error in decoded Packet !");
-                        }
-                      m_decodedList.push_back((*it).second.GetPktId());
-                    }
-                }
-            }
-          else
-            {
-            	//BufferManagement (we remove the oldest packet from decoded lists)
-              int oldestIndex=0;
-              nDroppedPackets++;
-            }
-          //update matrix m_matrix
-          //swap lines
-          PermuteLine (M-1,i-1,N);
-          //swap column
-          PermuteCol (N-1,i-1,M);
-          //remove the variable
-          M--;
-          N--;
-          m_varList.erase (m_varList.begin () + N);
-          m_decodingBuf.erase (m_decodingBuf.begin () + M);
+      // Transfer the decoded packet to decodedbuffer;
+      if (m_decodedBuf.size() < DECODED_BUFF_SIZE) {
+        //        BufferManagement;
+        //BufferManagement (we remove the oldest packet from decoded lists)
+        int oldestIndex=0;
+      }
+      g = m_decodingBuf[i-1]; //solved variable is in g
+      if (g->m_coefsList.size() !=1){
+        NS_LOG_UNCOND("Error in decoded Packet !");
+      }
+      Time now = Simulator::Now ();
+      it = g -> m_coefsList.begin();
+      if (m_myNCAppId != it -> second.GetNodeId()) {//we are not the source of the packet !
+        if (find(m_decodedBuf.begin(), m_decodedBuf.end(),it->first)!=m_decodedBuf.end()) { //The packet is already received
+          break;
         }
+        if (m_myNodeId == it -> second.GetDestination()) { // We have received a packet at destination !!!!!
+          //should change...
+          packetDelay += (now.GetMilliSeconds () - g->m_genTime);
+          nReceivedPackets++;
+          MyHeader removeHeader;
+          packetIn->RemoveHeader(removeHeader);
+          nReceivedBytes += packetIn->GetSize ();
+          NS_LOG_UNCOND("packetIn->GetSize () = "<<packetIn->GetSize ()<<" nReceivedBytes = "<<nReceivedBytes<<"  nReceivedPacket = "<<nReceivedPackets<<" m_myNodeId = "<<m_myNodeId);
+          NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
+          //should change and merge with above line...
+          NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetNanoSeconds () - g->m_genTime));
+        }
+        Ptr<DecodedPacketStorage> dnc=CreateObject<DecodedPacketStorage();
+        dnc->attribute.SetNodeId(it->second.GetNodeId());
+        dnc->attribute.SetIndex(it->second.GetIndex());
+        dnc->attribute.SetDestination(it->second.GetDestination());
+        dnc->attribute.SetGenTime(it->second.GetGenTime());
+        dnc->NCdatagram=g;
+        m_decodedBuf.insert(it->first,dnc);
+      }
+      //update matrix m_matrix
+      //swap lines
+      PermuteLine (M-1,i-1,N);
+      //swap column
+      PermuteCol (N-1,i-1,M);
+      //remove the variable
+      M--;
+      N--;
+      m_varList.erase(find(m_varList.begin(),m_varList.end(), it->first));
+      m_decodingBuf.erase (m_decodingBuf.begin () + M);
     }
-  if (M > N)
-    {
-      NS_LOG_UNCOND ("Fatal Error !");
-    }
+  }
+  if (M > N) {
+    NS_LOG_UNCOND ("Fatal Error !");
+  }
   NS_LOG_UNCOND("t = "<<Simulator::Now ().GetSeconds()<<"	nodeId = "<<m_myNodeId<<" End Of ES");
 }
 
@@ -1310,30 +1274,25 @@ MyNCApp::Decode (NetworkCodedDatagram* g, Ptr<Packet> packetIn)
   m_rcvCounter++;
   NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<"	nodeId = "<<m_myNodeId<<" m_rcvCounter "<<m_rcvCounter);
   Reduce(*g);
-  if(g->m_coefsList.size() == 0)
-    {
-      NS_LOG_UNCOND("t = " << Simulator::Now().GetSeconds() << " NODE ID: "<< m_myNodeId<<" ACT: Useless packet!!!");
-      	return;
-    }
-    if (CheckCapacity(*g))
-    {
-        m_decodingBuf.push_back(g);
-        UpdateVarList(*g);
-    }
-  else
-    {
+  if(g->m_coefsList.size() == 0) {
+    NS_LOG_UNCOND("t = " << Simulator::Now().GetSeconds() << " NODE ID: "<< m_myNodeId<<" ACT: Useless packet!!!");
+    return;
+  }
+  if (CheckCapacity(*g)) {
+    m_decodingBuf.push_back(g);
+    UpdateVarList(*g);
+  } else {
 		nDroppedPackets++;
 		NS_LOG_UNCOND("Dropped packet at NODE ID:" <<m_myNodeId);
-      	return;
-    }
+    return;
+  }
   // M: number of equations
   int M = m_decodingBuf.size();
   // N: number of variables
   int N = m_varList.size();
-  if (M>N)
-    {
-      NS_LOG_UNCOND("Fatal error !");
-    }
+  if (M>N) {
+    NS_LOG_UNCOND("Fatal error !");
+  }
   GenerateMatrix ();
   // L: column length (Number of variables+size of payload)
   //   L = N + MDU;
@@ -1757,7 +1716,3 @@ int main (int argc, char* argv[]) {
 
 	return 0;
 }
-
-
-
-

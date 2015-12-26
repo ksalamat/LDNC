@@ -58,8 +58,6 @@ public:
   virtual uint32_t GetSerializedSize (void) const;
   void SetDestination (uint8_t Id);
   uint8_t GetDestination (void) const;
- // void SetTime (uint32_t time);
- // uint32_t GetTime (void) const;
   void SetPacketType (uint8_t type);
   uint8_t GetPacketType (void) const;
   void SetNodeId (uint8_t id);
@@ -94,6 +92,14 @@ private:
   uint8_t m_remainingCapacity;
   uint8_t m_decodingBufSize;  //conveys neighbor's decodingBufSize
 };
+
+class DecodedPacketStorage : public ns3::Object {
+public :
+  DecodedPacketStorage();
+  ~DecodedPacketStorage();
+  NCAttribute attribute;
+  NetworkCodedDatagram* NCdatagram;
+}
 
 class MyNCApp : public Application
 {
@@ -149,9 +155,10 @@ public:
     // List containing packets to decode
   std::vector<NetworkCodedDatagram*> m_decodingBuf;
     // List containing decoded packets
-  std::vector<NetworkCodedDatagram*> m_decodedBuf;
-  std::vector<NCAttribute> m_decodedList;
-  std::vector<NCAttribute> m_varList;
+  std::map<std::string, DecodedPacketStorage*> m_decodedBuf;
+  //std::map<std::string, NCAttribute> m_decodedList;
+  std::map<std::string, NCAttribute> m_varList;
+  std::vector<std:string> variableList; //List only used during the decoding for swapping columns
   int m_rank;
   Matrix m_matrix;
   LPMatrix m_lpMatrix;//this matrix records unreceived vars. it will be used for constraints in LP

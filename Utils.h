@@ -5,7 +5,7 @@
 using namespace ns3;
 
 static const std::size_t BITS_PER_CHAR = 0x08;    // 8 bits in 1 char (unsigned)
-static const float NEIGHBOR_TIMER = 1.5;
+static const float NEIGHBOR_R = 1.5;
 
 std::string StringConcat (uint16_t nodeId, uint16_t packetUniq);
 
@@ -28,7 +28,7 @@ public:
 	Matrix ();
 	Matrix(int, int); //Constructor will only create the space here LLL
 	~Matrix();
-	void SetDimentions (int, int);
+	void SetDimensions (int, int);
 	void SetValue(int, int, int); // first two args are element position specifiers.
 	int	GetValue (int i, int j) const;
 	void PrintMatrix (int m, int n, int nodeId) const;
@@ -67,7 +67,6 @@ public:
 	uint8_t m_nodeId;
 	uint8_t m_destId;
 	uint8_t m_length;
-	Ipv4Address m_srcIp;
 	uint32_t m_genTime;
 	// Constructors and a Destructor
 	CoefElt ();
@@ -82,8 +81,6 @@ public:
 	void SetNodeId (uint8_t nodeId);
 	uint32_t GetGenTime () const;
 	void SetGenTime (uint32_t genTime);
-	void SetSource (const Ipv4Address& ip);
-	Ipv4Address GetSource () const;
 	void SetDestination (uint8_t destId);
 	uint8_t GetDestination () const;
 	std::string Key ();
@@ -96,8 +93,7 @@ typedef std::map<std::string, CoefElt> MapType;
 
 
 // class NetworkCodedDatagram
-class NetworkCodedDatagram
-{
+class NetworkCodedDatagram : public ns3::object {
 public:
 	// Fields
 	//galois::GaloisField *m_galoisField;
@@ -105,9 +101,11 @@ public:
 	int m_dataLength;
 	int m_index;
 	bool m_decoded;
+	//char * payload;
 
 	// Constructor and Destructor
 	NetworkCodedDatagram ();
+	NetworkCodedDatagram (NetworkCodedDatagram& );
 	~NetworkCodedDatagram ();
     //NetworkCodedDatagram (int index);
 	NetworkCodedDatagram& operator= (const NetworkCodedDatagram& nc);
@@ -122,9 +120,9 @@ public:
 	void SetDecoded();
 	void ResetDecoded ();
 	bool IsDecoded() const;
-	void Product(int coef, galois::GaloisField *galois);
-    void Sum (NetworkCodedDatagram& g, galois::GaloisField *galois);
-	void Minus (NetworkCodedDatagram& g, galois::GaloisField *galois);
+	void Product(int coef);
+  void Sum (NetworkCodedDatagram& g);
+	void Minus (NetworkCodedDatagram& g);
 };
 
 
