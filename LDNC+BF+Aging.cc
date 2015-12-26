@@ -407,7 +407,6 @@ MyNCApp::MyNCApp(): Application()
 	m_buffer. clear ();
 	m_decodedBuf. clear ();
 	m_decodingBuf. clear ();
-	m_decodedList. clear ();
 	m_varList. clear ();
 	m_packetInterval=0.008;
 	m_beaconInterval=1.0;
@@ -482,13 +481,17 @@ MyNCApp::GenerateBeacon ()
     beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
-	for (uint16_t i=0; i< m_varList.size(); i++)
+	std::map<std::string, NCAttribute>::iterator itr7;
+	for (itr7=m_varList.begin();itr7!=m_varList.end();itr7++)
 	{
-		tempFilter1->insert(m_varList.at(i));
+	    //No No ! we insert string in BFs !!!
+		tempFilter1->insert(itr7->first);
 	}
-	for (uint16_t i=0; i< m_decodedList.size(); i++)
+	std::map<std::string, DecodedPacketStorage>::iterator itr8;
+	for (itr8=m_decodedBuf.begin(); itr8!=m_decodedBuf.end(); itr8++)
 	{
-		tempFilter2->insert(m_decodedList.at(i));
+	    //No No ! we insert string in BFs !!!
+		tempFilter2->insert(itr8->first);
 	}
 	beaconHeader.PutDecodingBloomFilter (tempFilter1);
 	beaconHeader.PutDecodedBloomFilter (tempFilter2);
@@ -542,7 +545,7 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 	bool newNeighbor = true;
 	Time now = Simulator::Now ();
 	std::list<Neighbor>::iterator listIterator;
-	std::string tmpStr;
+	std::string tmpStr =Str;
 	if (!m_neighborhood.empty()) {
 		for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
 			if(listIterator->neighborId == header.GetNodeId ()) {
@@ -690,14 +693,16 @@ void MyNCApp::Forward ()
 				Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
 				Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
 				std::string tmpStr;
-				for (int i=(int)m_varList.size ()-1; i>=0; i--) {
-					tmpStr = StringConcat(m_varList.at(i).m_nodeId, m_varList.at(i).m_index);
-					tempFilter1->insert (tmpStr);
-				}
-				for (int i=(int)m_decodedList.size ()-1; i>=0; i--) {
-					tmpStr = StringConcat(m_decodedList.at(i).m_nodeId, m_decodedList.at(i).m_index);
-					tempFilter2->insert (tmpStr);
-				}
+				std::map<std::string, NCAttribute>::iterator itr7;
+	            for (itr7=m_varList.begin();itr7!=m_varList.end();itr7++)
+	              {
+                    tempFilter1->insert(itr7->first);
+                  }
+	            std::map<std::string, DecodedPacketStorage>::iterator itr8;
+	            for (itr8=m_decodedBuf.begin(); itr8!=m_decodedBuf.end(); itr8++)
+	              {
+	             	tempFilter2->insert(itr8->first);
+	              }
 				lcHeader.PutDecodingBloomFilter (tempFilter1);
 				lcHeader.PutDecodedBloomFilter (tempFilter2);
 				lcHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
@@ -750,11 +755,15 @@ NetworkCodedDatagram*
 	for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++)
 	{
 		B.at(index)=listIterator->neighborRemainingCapacity;
-		//let's first iterate over the decodedList
-		for (int i=0; i<L; i++)
+		//let's first iterate over the decoded packets
+
+    //std::map<std::string, NCAttribute>::iterator itr7;
+	std::map<std::string, DecodedPacketStorage>::iterator itr8;
+
+		for (int i=0, itr8=m_decodedBuf.begin(); i<L; i++, itr8++)
 		{
 			F.at(i)=0;
-			std::string tmpStr = StringConcat(m_decodedList.at(i).m_nodeId, m_decodedList.at(i).m_index);
+			std::string tmpStr = itr8->first;
 			if (!listIterator->neighborDecodedFilter->contains(tmpStr))
 			{
 				if (listIterator->neighborDecodingFilter->contains(tmpStr))
@@ -773,10 +782,11 @@ NetworkCodedDatagram*
 					m_lpMatrix.SetValue(index,i,1);
 				}
 			}
-		}//for loop over decodedList
+		}//for loop over decoded packets
 			//now let's iterate over the decodingList
 		for (uint16_t i=0; i< len-L; i++)
 		{
+		    //line below should change...
 			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
 			MapType::iterator it;
 			std::map<std::string, NCAttribute>::iterator itr;
@@ -787,7 +797,7 @@ NetworkCodedDatagram*
 				if (itr!=m_varList.end())//If you find the variable in the variable list
 				{
 //					uint16_t I = (uint16_t)(itr - m_varList.begin());//find the index of this variable in the varList!!!
-					std::string tmpStr = StringConcat(itr->m_nodeId, itr->m_index);
+					std::string tmpStr = itr->first;
 					if (!listIterator->neighborDecodedFilter->contains(tmpStr))
 					{
 						if (listIterator->neighborDecodingFilter->contains(tmpStr))
@@ -958,8 +968,8 @@ MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 	int newVar=0;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
 		itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
-		itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
-		if (itr==m_varList.end() && itr2==m_decodedList.end()) {
+		itr2 = std::find(m_decodedBuf.begin(),m_decodedBuf.end(),(*it).second.GetAttribute ());
+		if (itr==m_varList.end() && itr2==m_decodedBuf.end()) {
 			newVar++;
 		}
 	}
@@ -972,12 +982,13 @@ MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
-  MapType::iterator it;
-  std::map<std::string, NCAttribute>::iterator itr,itr2;
-  for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
-      itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
-      itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
-      if (itr==m_varList.end() && itr2==m_decodedList.end()) {
+    MapType::iterator it;
+    std::map<std::string, NCAttribute>::iterator itr;
+	std::map<std::string, DecodedPacketStorage>::iterator itr2;
+    for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
+      itr = std::find (m_varList.begin(), m_varList.end(), (*it).first);
+      itr2 = std::find(m_decodedBuf.begin(),m_decodedBuf.end(),(*it).first);
+      if (itr==m_varList.end() && itr2==m_decodedBuf.end()) {
           m_varList.push_back ((*it).second.GetAttribute ());
       }
   }
@@ -1155,7 +1166,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
 {
   uint32_t i,j,k,l,upPivot;
   MapType::iterator it,it2, it4;
-  std::vector<PacketId>::iterator it3;
+  //std::vector<NCAttribute>::iterator it3;
   CoefElt coef;
   NCAttribute id;
   bool solved=true;
@@ -1418,7 +1429,7 @@ void MyNCApp::PacketInjector ()
   	waitElm.pktId = (*it).first ;
   	waitElm.entranceTime = now.GetNanoSeconds();
   	m_waitingList.push_back (waitElm);
-  	m_decodedList.push_back (it->second.GetAttribute());
+  	//m_decodedList.push_back (it->second.GetAttribute());
   	m_nInjectedPackets++;
   	NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Source "<<m_myNodeId<<" injects "<<it->first<<" from m_buffer to m_decodedBuf and m_nInjectedPackets is "<<m_nInjectedPackets);
   }
