@@ -184,7 +184,7 @@ NCAttribute::NCAttribute()
 	m_length=0;
 }
 
-NCAttribute(NCAttribute& nc) {
+NCAttribute::NCAttribute(NCAttribute& nc) {
 	m_nodeId=nc.m_nodeId;
 	m_index=nc.m_index;
 	m_destId=nc.m_destId;
@@ -401,7 +401,7 @@ NetworkCodedDatagram::NetworkCodedDatagram ()
 	m_coefsList. clear ();
 }
 
-NetworkCodedDatagram (NetworkCodedDatagram& nc) {
+NetworkCodedDatagram::NetworkCodedDatagram (NetworkCodedDatagram& nc) {
 	m_dataLength=nc.m_dataLength;
 	m_index=nc.m_index;
 	m_decoded=nc.m_decoded;
@@ -546,7 +546,7 @@ void NetworkCodedDatagram::Sum (NetworkCodedDatagram& g, galois::GaloisField *ga
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
 		itr = m_coefsList.find (it-> first);
     if (itr!=m_coefsList.end ()) {
-      (itr->second.SetCoef (galois->add (itr->second.GetCoef(),it->second.GetCoef()));
+      itr->second.SetCoef (galois->add (itr->second.GetCoef(),it->second.GetCoef()));
       if (itr->second. GetCoef ()==0) {
         m_coefsList.erase (itr);
       }

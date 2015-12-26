@@ -99,7 +99,7 @@ typedef std::map<std::string, CoefElt> MapType;
 
 
 // class NetworkCodedDatagram
-class NetworkCodedDatagram : public ns3::object {
+class NetworkCodedDatagram : public ns3::Object {
 public:
 	// Fields
 	//galois::GaloisField *m_galoisField;
