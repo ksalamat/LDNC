@@ -481,7 +481,7 @@ MyNCApp::GenerateBeacon ()
   beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
-	std::map<std::string, NCAttribute>::iterator itr;
+	std::map<std::string, Ptr<NCAttribute>>::iterator itr;
 	for (itr=m_varList.begin();itr!=m_varList.end();itr++)
 	{
 	    //No No ! we insert string in BFs !!!
@@ -885,7 +885,7 @@ Ptr<NetworkCodedDatagram>
 			bool first=true;
 			int inserted;
 			Time now = Simulator::Now ();
-      map<std::string, Ptr<DecodedPacketStorage>>::iterator it;
+      map<std::string, Ptr<DecodedPacketStorage> >::iterator it;
 			for (int i=0;i<L;i++)
 			{
 				if (uniVar->GetValue(0.0,1.0) < probabilities.at(i))
@@ -944,7 +944,7 @@ void MyNCApp::Reduce (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
   std::map<std::string, DecodedPacketStorage>::iterator itr;
-	std::vector<Ptr<NetworkCodedDatagram>>::iterator bufItr;
+	std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	if (!m_decodedBuf.empty ()) {
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
       itr = find (m_decodedBuf.begin(), m_decodedBuf.end(), it->first);
@@ -1274,7 +1274,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
 }
 
 void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
-	std::map<std::string, Ptr<NCdatagram>>::iterator it;
+	std::map<std::string, Ptr<NCdatagram> >::iterator it;
 	// received packet validity check
   //int tmpNumCoef=g->m_coefsList.size();
   m_rcvCounter++;
@@ -1318,7 +1318,7 @@ void
 //MyNCAppSource::GeneratePacket (Ptr<Node> node, const Ipv4InterfaceContainer &destInterfaces, ExponentialRandomVariable &expVar, UniformRandomVariable &uniVar)
 MyNCApp::GeneratePacket ()
 {
-	std::vector<Ptr<NetworkCodedDatagram>>::iterator bufItr;
+	std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	MapType::iterator it2;
 	uint8_t destId;
 	if (m_buffer.size () < BUFFER_SIZE)

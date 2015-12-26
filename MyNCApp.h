@@ -96,10 +96,11 @@ private:
 class DecodedPacketStorage : public ns3::Object {
 public :
   DecodedPacketStorage();
+  DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc);
   ~DecodedPacketStorage();
   NCAttribute attribute;
   NetworkCodedDatagram* NCdatagram;
-}
+};
 
 class MyNCApp : public Application
 {
@@ -131,7 +132,7 @@ public:
   void UpdateWaitingList(std::string);
   void GeneratePacket();
   void PacketInjector();
-  void RemoveOldest ()
+  void RemoveOldest ();
 protected:
   std::list<Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source
@@ -156,10 +157,10 @@ public:
     // List containing packets to decode
   std::vector<NetworkCodedDatagram*> m_decodingBuf;
     // List containing decoded packets
-  std::map<std::string, Ptr<DecodedPacketStorage>> m_decodedBuf;
+  std::map<std::string, Ptr<DecodedPacketStorage> > m_decodedBuf;
   //std::map<std::string, NCAttribute> m_decodedList;
-  std::map<std::string, Ptr<NCAttribute>> m_varList;
-  std::vector<Ptr<NCAttribute>> variableList; //List only used during the decoding for swapping columns
+  std::map<std::string, Ptr<NCAttribute> > m_varList;
+  std::vector<Ptr<NCAttribute> > variableList; //List only used during the decoding for swapping columns
   int m_rank;
   Matrix m_matrix;
   LPMatrix m_lpMatrix;//this matrix records unreceived vars. it will be used for constraints in LP
