@@ -174,6 +174,10 @@ LPMatrix::PrintMatrix (int m, int n, int nodeId) const
 	  }
 }//end of definition of class LPMatrix
 
+NCAttribute::NCAttribute()
+{
+
+}
 
 NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_t Id, const uint32_t genTime)
 {
@@ -225,9 +229,18 @@ NCAttribute::SetNodeId (uint8_t nodeId)
 bool
 NCAttribute::operator==(const NCAttribute& p) const
 {
-	return m_nodeId==p.m_nodeId && m_index==p.m_index && m_destId==p.m_destId;
+	return m_nodeId==p.m_nodeId && m_index==p.m_index && m_destId==p.m_destId && m_genTime==p.m_genTime;
 }
 
+NCAttribute&
+NCAttribute::operator= (const NCAttribute& p)
+{
+    m_nodeId=p.m_nodeId;
+	m_index=p.m_index;
+	m_destId= p.m_destId;
+	m_genTime= p.m_genTime;
+	return *this;
+}
 void
 NCAttribute::SetDestination (uint8_t nodeId)
 {
@@ -239,6 +252,7 @@ NCAttribute::GetDestination () const
 {
 	return m_destId;
 }
+
 
 // CoefElt Empty Constructor
 CoefElt::CoefElt ()
@@ -335,7 +349,7 @@ CoefElt::GetAttribute () const
 bool
 CoefElt::operator== (const CoefElt& coef) const
 {
-	if ((m_nodeId==coef.m_nodeId)&& (m_index==coef.m_index))
+	if ((m_nodeId==coef.m_nodeId)&& (m_index==coef.m_index) && (m_genTime==coef.m_genTime))
     {
       return true;
     }
@@ -352,6 +366,7 @@ CoefElt::operator= (const CoefElt& coef)
 	m_index=coef.m_index;
 	m_length=coef.m_length;
 	m_destId= coef.m_destId;
+	m_genTime= coef.m_genTime;
 	return *this;
 }
 

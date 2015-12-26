@@ -87,6 +87,7 @@ Neighbor::Neighbor ()
   neighborhoodSize = 0;
   neighborDecodingBufSize = 0;
   neighborRemainingCapacity = 0;
+
 }
 
 Neighbor::~Neighbor ()
@@ -300,12 +301,6 @@ uint8_t
 MyHeader::GetNodeId (void) const
 {
   return m_nodeId;
-}
-
-uint32_t
-MyHeader::GetTime (void) const
-{
-    return m_time;
 }
 
 uint8_t
@@ -671,7 +666,8 @@ void MyNCApp::Forward ()
 				MyHeader lcHeader;
 				lcHeader.SetNodeId (m_myNodeId);
 				lcHeader.SetPacketType (1);
-				//should change: each var should have its own genTime
+				//the line below has changed in the forthcoming: each var should have its own genTime
+				//lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
 				MapType::iterator it;
 				std::stringstream ss;
 				ss << m_myNodeId;
@@ -687,6 +683,7 @@ void MyNCApp::Forward ()
 					}
 					lc.coeff = (*it).second.GetCoef();
 					lc.dstId = (*it).second.GetDestination();
+					lc.genTime= (*it).second.GetGenTime();
 					lcHeader.m_linComb.push_back (lc);
 				}
 				lcHeader.SetLinearCombinationSize (lcHeader.m_linComb.size ());
@@ -785,8 +782,8 @@ NetworkCodedDatagram*
 			std::map<std::string, NCAttribute>::iterator itr;
 			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++)
 			{
-				itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
-				//itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
+				itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
+				//itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
 				if (itr!=m_varList.end())//If you find the variable in the variable list
 				{
 //					uint16_t I = (uint16_t)(itr - m_varList.begin());//find the index of this variable in the varList!!!
@@ -937,8 +934,8 @@ NetworkCodedDatagram*
 
 void MyNCApp::Reduce (NetworkCodedDatagram& g)
 {
-	MapType::iterator it;
-  std::map<std::string, PacketId>::iterator itr;
+    MapType::iterator it;
+    std::map<std::string, PacketId>::iterator itr;
 	std::vector<NetworkCodedDatagram*>::iterator bufItr;
 	if (!m_decodedList.empty ()) {
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
@@ -957,10 +954,11 @@ MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
 {
 	MapType::iterator it;
 	std::vector<std::string, NCAttribute>::iterator itr,itr2;
+
 	int newVar=0;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
-		itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
-		itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
+		itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
+		itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
 		if (itr==m_varList.end() && itr2==m_decodedList.end()) {
 			newVar++;
 		}
@@ -977,10 +975,10 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
   MapType::iterator it;
   std::map<std::string, NCAttribute>::iterator itr,itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
-      itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetPktId ());
-      itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetPktId ());
+      itr = std::find (m_varList.begin(), m_varList.end(), (*it).second.GetAttribute ());
+      itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
       if (itr==m_varList.end() && itr2==m_decodedList.end()) {
-          m_varList.push_back ((*it).second.GetPktId ());
+          m_varList.push_back ((*it).second.GetAttribute ());
       }
   }
 }
@@ -989,9 +987,11 @@ void
 MyNCApp::GenerateMatrix ()
 {
 	m_matrix.A.clear ();
-  std::map<std::string, DecodedPacketStorage*>::iterator bufItr;
+    std::map<std::string, DecodedPacketStorage*>::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
-  Ptr<NetworkCodedDatagram> g;
+    std::vector<NCAttribute>::iterator varLstItr;
+	NetworkCodedDatagram* g;
+	g = new NetworkCodedDatagram();
 
 	// Number of variables
 	int N = m_varList.size();
@@ -1007,7 +1007,7 @@ MyNCApp::GenerateMatrix ()
       g=bufItr;
       for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++)
         {
-          varLstItr = std::find (m_varList.begin(), m_varList.end(), (*coefsLstItr).second.GetPktId ());
+          varLstItr = std::find (m_varList.begin(), m_varList.end(), (*coefsLstItr).second.GetAttribute ());
           pos = varLstItr - m_varList.begin ();
           if (varLstItr==m_varList.end()) {
               NS_LOG_UNCOND ("ERROR in GenerateMatrix");
@@ -1117,7 +1117,7 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
       id = variableList[col1];
       variableList[col1] = variableList[col2];
       variableList[col2] = id;
-      // swap column in coefficient matrix
+     // swap column in coefficient matrix
       for(int l = 0; l < L; l++)
         {
           tmp = m_matrix.GetValue(l,col1);
@@ -1156,9 +1156,8 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
   uint32_t i,j,k,l,upPivot;
   MapType::iterator it,it2, it4;
   std::vector<PacketId>::iterator it3;
-  std::vector<Ptr<NetworkCodedDatagram>>::iterator bufItr;
   CoefElt coef;
-  PacketId id;
+  NCAttribute id;
   bool solved=true;
   Ptr<NetworkCodedDatagram> g;
   g= CreateObject<NetworkCodedDatagram>();
@@ -1225,6 +1224,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
       if (m_myNCAppId != it -> second.GetNodeId()) {//we are not the source of the packet !
         if (find(m_decodedBuf.begin(), m_decodedBuf.end(),it->first)!=m_decodedBuf.end()) { //The packet is already received
           break;
+
         }
         if (m_myNodeId == it -> second.GetDestination()) { // We have received a packet at destination !!!!!
           //should change...
@@ -1418,7 +1418,7 @@ void MyNCApp::PacketInjector ()
   	waitElm.pktId = (*it).first ;
   	waitElm.entranceTime = now.GetNanoSeconds();
   	m_waitingList.push_back (waitElm);
-  	m_decodedList.push_back (it->second.GetPktId());
+  	m_decodedList.push_back (it->second.GetAttribute());
   	m_nInjectedPackets++;
   	NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Source "<<m_myNodeId<<" injects "<<it->first<<" from m_buffer to m_decodedBuf and m_nInjectedPackets is "<<m_nInjectedPackets);
   }
