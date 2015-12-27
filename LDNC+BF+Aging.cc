@@ -1440,9 +1440,9 @@ void MyNCApp::PacketInjector ()
 		q->ncDatagram=p;
     Ptr<NCAttribute> attribute= CreateObject<NCAttribute>();
     q->attribute.m_nodeId=p->m_coefsList.begin()->second.GetNodeId();
-    q->attribute.m_Index=p->m_coefsList.begin()->second.GetIndex();
+    q->attribute.m_index=p->m_coefsList.begin()->second.GetIndex();
     q->attribute.m_destId=p->m_coefsList.begin()->second.GetDestination();
-    q->attribute.m_genTime=p->m_coefsList.begin()->second.GetGenTime());
+    q->attribute.m_genTime=p->m_coefsList.begin()->second.GetGenTime();
 		m_decodedBuf.push_back(q);
 //    m_decodedList.insert(q->attribute.Key(), q);
     m_decodedList[q->attribute.Key()]=q;
