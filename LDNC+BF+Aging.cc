@@ -1004,7 +1004,7 @@ void MyNCApp::GenerateMatrix ()
 	m_matrix.A.clear ();
   std::map<std::string, Ptr<DecodedPacketStorage> >::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
-  std::vector<std::string, NCAttribute >::iterator varLstItr;
+  std::map<std::string, NCAttribute >::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
 	g =  CreateObject<NetworkCodedDatagram> ();
 	// Number of variables
@@ -1016,7 +1016,7 @@ void MyNCApp::GenerateMatrix ()
       NS_LOG_UNCOND ("# of equations > # of variables !");
 	}
 	m_matrix.SetDimensions (M, N);
-  int i=0
+  int i=0;
 	for (bufItr=m_decodingBuf.begin (); bufItr!=m_decodingBuf.end (); bufItr++) {
     g=bufItr;
     for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++) {
