@@ -1004,7 +1004,7 @@ void MyNCApp::GenerateMatrix ()
 	m_matrix.A.clear ();
   std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	MapType::iterator coefsLstItr;
-  std::vector<Ptr<NetworkCodedDatagram> >::iterator it;
+  std::vector<Ptr<NCAttribute> >::iterator it;
   std::map<std::string, NCAttribute >::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
 	g =  CreateObject<NetworkCodedDatagram> ();
