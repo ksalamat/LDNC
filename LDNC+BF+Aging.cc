@@ -893,7 +893,7 @@ Ptr<NetworkCodedDatagram>
 				{
 					coef = uniVar->GetInteger (1,255);
 					//NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
-					g=*(m_decodedBuf[i]);
+					g=m_decodedBuf[i]->ncDatagram;
 					g.Product(coef, m_nodeGaloisField );
 					inserted++;
 					if (first)
@@ -944,21 +944,20 @@ void MyNCApp::Reduce (NetworkCodedDatagram& g)
   MapType::iterator it;
   std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
 	std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
+  Ptr<NetworkCodedDatagram> nc;
 	if (!m_decodedBuf.empty ()) {
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
       itr = m_decodedList.find (it->first);
       if (itr!=m_decodedList.end()) {// we should reduce the packet
-        Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram> (*(itr->NCdatagram));
-        nc->Product(it->second.coef,m_nodeGaloisField);
+        nc= CreateObject<NetworkCodedDatagram> (*(itr->second.ncDatagram));
+        nc->Product(it->second.m_coef,m_nodeGaloisField);
         g.Minus(*nc, m_nodeGaloisField);
       }
     }
   }
 }
 
-int
-MyNCApp::CheckCapacity(NetworkCodedDatagram& g)
-{
+int MyNCApp::CheckCapacity(NetworkCodedDatagram& g) {
 	MapType::iterator it;
 	std::vector<std::string, Ptr<NCAttribute> >::iterator itr,itr2;
 
