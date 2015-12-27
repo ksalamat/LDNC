@@ -1033,10 +1033,11 @@ void MyNCApp::GenerateMatrix ()
           break;
         }
       }
-      if (found)
+      if (found) {
         m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ())
-      else
+      } else {
         NS_LOG_UNCOND ("ERROR in GenerateMatrix");
+      }
     }
 	}
 }
