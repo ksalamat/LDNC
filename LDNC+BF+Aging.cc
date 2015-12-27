@@ -647,7 +647,8 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 				found++;
 				tmpStr = strPktId.substr (found, strPktId.size () - found);
 				std::stringstream (tmpStr) >> coef. m_index;
-				nc ->m_coefsList.insert(MapType::value_type(strPktId, coef));
+//				nc ->m_coefsList.insert(MapType::value_type(strPktId, coef));
+        nc ->m_coefsList[strPktId]=coef;
 			}
 			//should change: each var should have its own genTime
 			//nc-> m_genTime=header.GetTime();
@@ -988,7 +989,8 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
     if (itr==m_varList.end() && itr2==m_decodedList.end()) {
       Ptr<NCAttribute> attribute=CreateObject<NCAttribute>(it->second.m_nodeId,it->second.m_index,
         it->second.m_destId, it->second.m_genTime);
-      m_varList.insert(it->first, *(attribute));
+//      m_varList.insert(it->first, *(attribute));
+        m_varList[it->first]=*(attribute);
     }
 //    variableList.clear();
 //    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
@@ -1195,7 +1197,8 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
     coef.SetNodeId(ptr-> GetNodeId ());
     coef.SetDestination (ptr-> GetDestination());
     coef.SetGenTime(ptr->GetGenTime());
-    m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+//    m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+    m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
     for (j=i;j<N;j++) {
       if (m_matrix.GetValue(i-1, j)!=0){
         solved=false;
@@ -1205,7 +1208,8 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         coef.SetIndex(ptr->GetIndex());
         coef.SetNodeId(ptr->GetNodeId ());
         coef.SetDestination (ptr-> GetDestination());
-        m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+//        m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+        m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
       }
     }
     if (solved){
@@ -1259,8 +1263,9 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         dnc->attribute.SetDestination(it->second.GetDestination());
         dnc->attribute.SetGenTime(it->second.GetGenTime());
         dnc->NCdatagram=g;
-        m_decodedList.insert(it->first,dnc);
-        m_decodedBuf.insert(dnc);
+//        m_decodedList.insert(it->first,dnc);
+        m_decodedList[it->first]=dnc;
+        m_decodedBuf.push_back(dnc);
       }
       //update matrix m_matrix
       //swap lines
@@ -1351,7 +1356,8 @@ MyNCApp::GeneratePacket ()
 			coef.SetSource (m_myNCAppIp);
 			coef.SetDestination (destId);
 			coef.SetGenTime(now.GetNanoSeconds ());
-			nc->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+//			nc->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+      nc->m_coefsList[coef.Key()]=coef;
 			m_buffer.push_front (nc);
 			m_nGeneratedPackets++;
 			MapType::iterator it = nc-> m_coefsList.begin ();
@@ -1444,7 +1450,8 @@ void MyNCApp::PacketInjector ()
     q->attribute (p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
                      p->m_coefsList.begin()->second.GetDestination, p->m_coefsList.begin()->second.GetGenTime());
 		m_decodedBuf.push_back(q);
-    m_decodedList.insert(q->attribute.Key(), q);
+//    m_decodedList.insert(q->attribute.Key(), q);
+    m_decodedList[q->attribute.Key()]=q;
 		m_buffer.pop_back();
 		WaitingListMember waitElm;
 		Time now = Simulator::Now ();
