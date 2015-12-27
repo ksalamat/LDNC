@@ -1172,8 +1172,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
   //std::vector<NCAttribute>::iterator it3;
   CoefElt coef;
   bool solved=true;
-  Ptr<NetworkCodedDatagram> g;
-  g= CreateObject<NetworkCodedDatagram>();
+  Ptr<NetworkCodedDatagram> g= CreateObject<NetworkCodedDatagram>();
   if (M < m_decodingBuf.size())
     {
       for (i=M;i<m_decodingBuf.size();i++)
@@ -1217,7 +1216,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         if (upPivot!=0) {
           for(l = k; l < N ; l++) {
             //Column index
-            m_matrix.SetValue(k-1, l, GaloisField::sub(m_matrix.GetValue(k-1, l), m_nodeGaloisField->mul(upPivot, m_matrix.GetValue(i-1,l))));
+            m_matrix.SetValue(k-1, l, m_nodeGaloisField->sub(m_matrix.GetValue(k-1, l), m_nodeGaloisField->mul(upPivot, m_matrix.GetValue(i-1,l))));
           }
         }
       }
@@ -1235,7 +1234,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
       }
       Time now = Simulator::Now ();
       it = g -> m_coefsList.begin();
-      if (m_myNCAppId != it -> second.GetNodeId()) {//we are not the source of the packet !
+      if (m_myNodeId != it -> second.GetNodeId()) {//we are not the source of the packet !
         if (m_decodedList.find(it->first)!=m_decodedList.end()) { //The packet is already received
           break;
 
@@ -1257,7 +1256,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         dnc->attribute.SetIndex(it->second.GetIndex());
         dnc->attribute.SetDestination(it->second.GetDestination());
         dnc->attribute.SetGenTime(it->second.GetGenTime());
-        dnc->NCdatagram=g;
+        dnc->ncDatagram=g;
 //        m_decodedList.insert(it->first,dnc);
         m_decodedList[it->first]=dnc;
         m_decodedBuf.push_back(dnc);
@@ -1281,7 +1280,6 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
 }
 
 void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
-	std::map<std::string, Ptr<NCdatagram> >::iterator it;
 	// received packet validity check
   //int tmpNumCoef=g->m_coefsList.size();
   m_rcvCounter++;
@@ -1348,9 +1346,8 @@ MyNCApp::GeneratePacket ()
 			coef.SetCoef (1);
 			coef.SetIndex (m_nGeneratedPackets);
 			coef.SetNodeId (m_myNodeId);
-			coef.SetSource (m_myNCAppIp);
 			coef.SetDestination (destId);
-			coef.SetGenTime(now.GetNanoSeconds ());
+			coef.SetGenTime(now.GetMilliSeconds ());
 //			nc->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
       nc->m_coefsList[coef.Key()]=coef;
 			m_buffer.push_front (nc);
@@ -1418,7 +1415,7 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 
 void MyNCApp::RemoveOldest ()
 {
-  std::map<std::string, Ptr<DecodedPacketStorage> > :iterator pointToOldest, it;
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
   pointToOldest = m_decodedList.begin(); //;
   for (it= m_decodedBuf.begin(); it!=m_decodedBuf.end(); it++){
       if (it->attribute.GetGenTime() > pointToOldest->attribute.GetGenTime()) {
@@ -1441,9 +1438,10 @@ void MyNCApp::PacketInjector ()
 		p= Ptr<NetworkCodedDatagram>();
 		p=m_buffer.back();
 		Ptr<DecodedPacketStorage> q;
-		q->NCdatagram=p;
-    q->attribute (p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
+		q->ncDatagram=p;
+    Ptr<NCAttribute> attribute= CreateObject<NCAttribute>(p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
                      p->m_coefsList.begin()->second.GetDestination, p->m_coefsList.begin()->second.GetGenTime());
+    q->attribute=*attribute; 
 		m_decodedBuf.push_back(q);
 //    m_decodedList.insert(q->attribute.Key(), q);
     m_decodedList[q->attribute.Key()]=q;
