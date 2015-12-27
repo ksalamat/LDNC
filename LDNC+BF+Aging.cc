@@ -994,7 +994,7 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
     }
     m_variableList.clear();
     for (itr=m_varList.begin();itr!=m_varList.end();itr++){
-      m_variableList.push_back(itr);
+      m_variableList.push_back(itr->second);
     }
   }
 }
@@ -1002,7 +1002,7 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 void MyNCApp::GenerateMatrix ()
 {
 	m_matrix.A.clear ();
-  std::map<std::string, Ptr<NetworkCodedDatagram> >::iterator bufItr;
+  std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	MapType::iterator coefsLstItr;
   std::vector<Ptr<NetworkCodedDatagram> >::iterator it;
   std::map<std::string, NCAttribute >::iterator varLstItr;
@@ -1017,9 +1017,8 @@ void MyNCApp::GenerateMatrix ()
       NS_LOG_UNCOND ("# of equations > # of variables !");
 	}
 	m_matrix.SetDimensions (M, N);
-  int i=0;
-	for (bufItr=m_decodingBuf.begin (); bufItr!=m_decodingBuf.end (); bufItr++) {
-    g=bufItr;
+  for (int i=0;i<M;i++){
+    g=m_decodingBuf[i];
     for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++) {
       varLstItr = m_varList.find (coefsLstItr->first);
       if (varLstItr==m_varList.end()) {
@@ -1029,7 +1028,6 @@ void MyNCApp::GenerateMatrix ()
       pos = it - m_decodingBuf.begin ();
       m_matrix.SetValue (i,pos, (*coefsLstItr).second.GetCoef ());
     }
-    i++;
 	}
 }
 
