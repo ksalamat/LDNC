@@ -1034,7 +1034,7 @@ void MyNCApp::GenerateMatrix ()
         }
       }
       if (found) {
-        m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ())
+        m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ());
       } else {
         NS_LOG_UNCOND ("ERROR in GenerateMatrix");
       }
