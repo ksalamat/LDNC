@@ -1418,12 +1418,12 @@ void MyNCApp::RemoveOldest ()
   std::vector<Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
   pointToOldest = m_decodedBuf.begin(); //;
   for (it= m_decodedBuf.begin(); it!=m_decodedBuf.end(); it++){
-      if (it->attribute.GetGenTime() > pointToOldest->attribute.GetGenTime()) {
+      if ((*it)->attribute.GetGenTime() > (*pointToOldest)->attribute.GetGenTime()) {
           pointToOldest=it;
       }
   }
 
-  m_decodedList.erase(m_decodedList.find(pointToOldest->attribute.Key()));
+  m_decodedList.erase(m_decodedList.find((*pointToOldest)->attribute.Key()));
   m_decodedBuf.erase(pointToOldest);
 }
 
