@@ -1017,6 +1017,8 @@ void MyNCApp::GenerateMatrix ()
       NS_LOG_UNCOND ("# of equations > # of variables !");
 	}
 	m_matrix.SetDimensions (M, N);
+  int j;
+  bool found;
   for (int i=0;i<M;i++){
     g=m_decodingBuf[i];
     for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++) {
@@ -1024,12 +1026,17 @@ void MyNCApp::GenerateMatrix ()
       if (varLstItr==m_varList.end()) {
         NS_LOG_UNCOND ("ERROR in GenerateMatrix");
       }
-      for (int j=0; j<N;j++) {
+      found= false;
+      for (j=0; j<N;j++) {
         if (m_variableList[j]->Key() ==varLstItr->second.Key()) {
+          found=true;
           break;
         }
       }
-      m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ());
+      if (found)
+        m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ())
+      else
+        NS_LOG_UNCOND ("ERROR in GenerateMatrix");
     }
 	}
 }
