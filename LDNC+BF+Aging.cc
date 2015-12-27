@@ -1415,7 +1415,7 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 
 void MyNCApp::RemoveOldest ()
 {
-  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
+  std::vector<Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
   pointToOldest = m_decodedList.begin(); //;
   for (it= m_decodedBuf.begin(); it!=m_decodedBuf.end(); it++){
       if (it->attribute.GetGenTime() > pointToOldest->attribute.GetGenTime()) {
@@ -1424,7 +1424,7 @@ void MyNCApp::RemoveOldest ()
   }
 
   m_decodedList.erase(m_decodedList.find(it->attribute.Key()));
-  m_decodedBuf.erase(it)
+  m_decodedBuf.erase(it);
 }
 
 void MyNCApp::PacketInjector ()
@@ -1434,14 +1434,13 @@ void MyNCApp::PacketInjector ()
  	  RemoveOldest();
     }
    else {
-		NetworkCodedDatagram *p;
-		p= Ptr<NetworkCodedDatagram>();
+		Ptr<NetworkCodedDatagram> p;
 		p=m_buffer.back();
 		Ptr<DecodedPacketStorage> q;
 		q->ncDatagram=p;
     Ptr<NCAttribute> attribute= CreateObject<NCAttribute>(p->m_coefsList.begin()->second.GetNodeId(), p->m_coefsList.begin()->second.GetIndex(),
                      p->m_coefsList.begin()->second.GetDestination, p->m_coefsList.begin()->second.GetGenTime());
-    q->attribute=*attribute; 
+    q->attribute=*attribute;
 		m_decodedBuf.push_back(q);
 //    m_decodedList.insert(q->attribute.Key(), q);
     m_decodedList[q->attribute.Key()]=q;
