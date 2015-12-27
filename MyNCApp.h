@@ -153,14 +153,16 @@ public:
   uint16_t m_myNodeId;
   uint16_t m_myNeighborhoodSize;
   Ipv4Address m_myNCAppIp;
-  std::deque<NetworkCodedDatagram*> m_buffer;
-    // List containing packets to decode
-  std::vector<NetworkCodedDatagram*> m_decodingBuf;
-    // List containing decoded packets
-  std::map<std::string, Ptr<DecodedPacketStorage> > m_decodedBuf;
-  //std::map<std::string, NCAttribute> m_decodedList;
+  std::deque<Ptr<NetworkCodedDatagram> > m_buffer;
+  // List containing decoded packets
+  std::vector<Ptr<DecodedPacketStorage> > m_decodedBuf;
+  std::map<std::string, Ptr<DecodedPacketStorage> > m_decodedList;
+  // List containing packets to decode
+  std::vector<Ptr<NetworkCodedDatagram> > m_decodingBuf;
   std::map<std::string, Ptr<NCAttribute> > m_varList;
-  std::vector<Ptr<NCAttribute> > variableList; //List only used during the decoding for swapping columns
+  //std::vector<Ptr<NCAttribute> > m_variableList; //List only used during the decoding for swapping columns
+  //std::map<std::string, NCAttribute> m_decodedList;
+
   int m_rank;
   Matrix m_matrix;
   LPMatrix m_lpMatrix;//this matrix records unreceived vars. it will be used for constraints in LP
