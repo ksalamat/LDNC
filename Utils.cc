@@ -184,7 +184,7 @@ NCAttribute::NCAttribute()
 	m_length=0;
 }
 
-NCAttribute::NCAttribute(NCAttribute& nc) {
+NCAttribute::NCAttribute(const NCAttribute& nc) {
 	m_nodeId=nc.m_nodeId;
 	m_index=nc.m_index;
 	m_destId=nc.m_destId;
