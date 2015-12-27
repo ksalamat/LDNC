@@ -483,7 +483,7 @@ MyNCApp::GenerateBeacon ()
   beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
-	std::map<std::string, Ptr<NCAttribute> >::iterator itr;
+	std::map<std::string, NCAttribute >::iterator itr;
 	for (itr=m_varList.begin();itr!=m_varList.end();itr++)
 	{
 	    //No No ! we insert string in BFs !!!
@@ -695,7 +695,7 @@ void MyNCApp::Forward ()
 				Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
 				Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
 				std::string tmpStr;
-				std::map<std::string, Ptr<NCAttribute> >::iterator itr;
+				std::map<std::string, NCAttribute >::iterator itr;
 	      for (itr=m_varList.begin();itr!=m_varList.end();itr++) {
           tempFilter1->insert(itr->first);
         }
@@ -788,7 +788,7 @@ Ptr<NetworkCodedDatagram>
 		    //line below should change...
 			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
 			MapType::iterator it;
-			std::map<std::string, Ptr<NCAttribute> >::iterator itr;
+			std::map<std::string, NCAttribute >::iterator itr;
 			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++)
 			{
 				itr = m_varList.find (it->first);
@@ -959,7 +959,8 @@ void MyNCApp::Reduce (NetworkCodedDatagram& g)
 
 int MyNCApp::CheckCapacity(NetworkCodedDatagram& g) {
 	MapType::iterator it;
-	std::vector<std::string, Ptr<NCAttribute> >::iterator itr,itr2;
+	std::map<std::string, NCAttribute >::iterator itr;
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
 
 	int newVar=0;
 	for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
@@ -979,14 +980,14 @@ void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
   MapType::iterator it;
-  std::map<std::string, Ptr<NCAttribute> >::iterator itr;
+  std::map<std::string, NCAttribute >::iterator itr;
 	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
     itr = m_varList.find (it->first);
     itr2 = m_decodedList.find(it->first);
     if (itr==m_varList.end() && itr2==m_decodedList.end()) {
       Ptr<NCAttribute> attribute=CreateObject<NCAttribute>(it->second.GetAttribute ());
-      m_varList.insert(it->first, attribute);
+      m_varList.insert(it->first, *attribute);
     }
 //    variableList.clear();
 //    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
@@ -1000,7 +1001,7 @@ void MyNCApp::GenerateMatrix ()
 	m_matrix.A.clear ();
   std::map<std::string, Ptr<DecodedPacketStorage> >::iterator bufItr;
 	MapType::iterator coefsLstItr, it;
-  std::vector<Ptr<NCAttribute> >::iterator varLstItr;
+  std::vector<std::string, NCAttribute >::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
 	g =  CreateObject<NetworkCodedDatagram> ();
 	// Number of variables
@@ -1121,7 +1122,7 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
     {
       // swap column in var_list
       // L : # of rows
-      Ptr<NCAttribute> ptr ;
+      Ptr<DecodedPacketStorage> ptr ;
 
 //      ptr = variableList[col1];
 //      variableList[col1] = variableList[col2];
@@ -1181,7 +1182,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         }
     }
   //Check if one variable have been determined
-  Ptr<NCAttribute> ptr;
+  Ptr<DecodedPacketStorage> ptr;
   for (i=M;i>=1;i--) {
     solved=true;
     // Prepare the NCdatagram
