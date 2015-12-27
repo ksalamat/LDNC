@@ -1234,7 +1234,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
       //m_matrix.PrintMatrix(M,N,m_myNodeId);
 
       // Transfer the decoded packet to decodedbuffer;
-      if (m_decodedBuf.size() < DECODED_BUFF_SIZE) {
+      if (m_decodedBuf.size() >= DECODED_BUFF_SIZE) {
         //BufferManagement (we remove the oldest packet from decoded lists)
         RemoveOldest();
       }
