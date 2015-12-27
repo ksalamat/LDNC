@@ -95,7 +95,7 @@ private:
 
 class DecodedPacketStorage : public ns3::Object {
 public :
-  DecodedPacketStorage();
+  DecodedPacketStorage(){};
   DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc);
   ~DecodedPacketStorage();
   NCAttribute attribute;
