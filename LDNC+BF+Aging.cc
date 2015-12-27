@@ -988,12 +988,12 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
     if (itr==m_varList.end() && itr2==m_decodedList.end()) {
       Ptr<NCAttribute> attribute=CreateObject<NCAttribute>(it->second.m_nodeId,it->second.m_index,
         it->second.m_destId, it->second.m_genTime);
-      m_varList.insert(it->first, *attribute);
+      m_varList.insert(it->first, *(attribute));
     }
 //    variableList.clear();
 //    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
 //      variableList.push_back(itr);
-    }
+//    }
   }
 }
 
