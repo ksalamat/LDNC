@@ -1446,7 +1446,7 @@ void MyNCApp::PacketInjector ()
    else {
 		Ptr<NetworkCodedDatagram> p;
 		p=m_buffer.back();
-		Ptr<DecodedPacketStorage> q = CreateOject<DecodedPacketStorage>();
+		Ptr<DecodedPacketStorage> q = CreateObject<DecodedPacketStorage>();
 		q->ncDatagram=p;
     Ptr<NCAttribute> attribute= CreateObject<NCAttribute>();
     q->attribute.m_nodeId=p->m_coefsList.begin()->second.GetNodeId();
