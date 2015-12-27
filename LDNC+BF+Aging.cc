@@ -1012,7 +1012,6 @@ void MyNCApp::GenerateMatrix ()
 	int N = m_varList.size();
   // Number of equations
 	int M = m_decodingBuf.size();
-	int pos=0;
   if (M>N) {
       NS_LOG_UNCOND ("# of equations > # of variables !");
 	}
