@@ -992,18 +992,19 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 //      m_varList.insert(it->first, *(attribute));
         m_varList[it->first]=*(attribute);
     }
-//    variableList.clear();
-//    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
-//      variableList.push_back(itr);
-//    }
+    m_variableList.clear();
+    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
+      m_variableList.push_back(itr);
+    }
   }
 }
 
 void MyNCApp::GenerateMatrix ()
 {
 	m_matrix.A.clear ();
-  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator bufItr;
-	MapType::iterator coefsLstItr, it;
+  std::map<std::string, Ptr<NetworkCodedDatagram> >::iterator bufItr;
+	MapType::iterator coefsLstItr;
+  std::vector<Ptr<NetworkCodedDatagram> >::iterator it;
   std::map<std::string, NCAttribute >::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
 	g =  CreateObject<NetworkCodedDatagram> ();
@@ -1024,7 +1025,8 @@ void MyNCApp::GenerateMatrix ()
       if (varLstItr==m_varList.end()) {
         NS_LOG_UNCOND ("ERROR in GenerateMatrix");
       }
-      pos = varLstItr - m_varList.begin ();
+      it=find(m_decodingBuf.begin(), m_decodingBuf.end(), varLstItr->second);
+      pos = it - m_decodingBuf.begin ();
       m_matrix.SetValue (i,pos, (*coefsLstItr).second.GetCoef ());
     }
     i++;
@@ -1125,14 +1127,11 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
     {
       // swap column in var_list
       // L : # of rows
-      Ptr<DecodedPacketStorage> ptr ;
+      Ptr<NCAttribute> ptr ;
 
-//      ptr = variableList[col1];
-//      variableList[col1] = variableList[col2];
-//      variableList[col2] = ptr;
-      ptr = m_decodingBuf[col1];
-      m_decodingBuf[col1] = m_decodingBuf[col2];
-      m_decodingBuf[col2] = ptr;
+      ptr = m_variableList[col1];
+      m_variableList[col1] = m_variableList[col2];
+      m_variableList[col2] = ptr;
 
      // swap column in coefficient matrix
       for(int l = 0; l < L; l++)
@@ -1185,14 +1184,13 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         }
     }
   //Check if one variable have been determined
-  Ptr<DecodedPacketStorage> ptr;
+  Ptr<NCAttribute> ptr;
   for (i=M;i>=1;i--) {
     solved=true;
     // Prepare the NCdatagram
     m_decodingBuf[i-1]->m_coefsList.clear();
     coef.SetCoef(m_matrix.GetValue(i-1, i-1));
-//    ptr=variableList[i-1];
-    ptr=m_decodingBuf[i-1];
+    ptr=m_variableList[i-1];
     coef.SetIndex(ptr-> GetIndex());
     coef.SetNodeId(ptr-> GetNodeId ());
     coef.SetDestination (ptr-> GetDestination());
@@ -1203,8 +1201,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
       if (m_matrix.GetValue(i-1, j)!=0){
         solved=false;
         coef.SetCoef(m_matrix.GetValue(i-1, j));
-//        ptr=variableList[j];
-        ptr=m_decodingBuf[j];
+        ptr=m_variableList[j];
         coef.SetIndex(ptr->GetIndex());
         coef.SetNodeId(ptr->GetNodeId ());
         coef.SetDestination (ptr-> GetDestination());
