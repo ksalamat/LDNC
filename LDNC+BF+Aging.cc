@@ -1024,8 +1024,9 @@ void MyNCApp::GenerateMatrix ()
       if (varLstItr==m_varList.end()) {
         NS_LOG_UNCOND ("ERROR in GenerateMatrix");
       }
-      it=find(m_decodingBuf.begin(), m_decodingBuf.end(), varLstItr->second);
-      pos = it - m_decodingBuf.begin ();
+
+      it=find(m_variableList.begin(), m_variableList.end(), varLstItr->second);
+      pos = it - m_variableList.begin ();
       m_matrix.SetValue (i,pos, (*coefsLstItr).second.GetCoef ());
     }
 	}
