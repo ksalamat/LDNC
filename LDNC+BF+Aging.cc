@@ -893,7 +893,7 @@ Ptr<NetworkCodedDatagram>
 				{
 					coef = uniVar->GetInteger (1,255);
 					//NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
-					g=m_decodedBuf[i]->ncDatagram;
+					g=*(m_decodedBuf[i]->ncDatagram);
 					g.Product(coef, m_nodeGaloisField );
 					inserted++;
 					if (first)
@@ -949,7 +949,7 @@ void MyNCApp::Reduce (NetworkCodedDatagram& g)
     for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end ();it++) {
       itr = m_decodedList.find (it->first);
       if (itr!=m_decodedList.end()) {// we should reduce the packet
-        nc= CreateObject<NetworkCodedDatagram> (*(itr->second.ncDatagram));
+        nc= CreateObject<NetworkCodedDatagram> (*(itr->second->ncDatagram));
         nc->Product(it->second.m_coef,m_nodeGaloisField);
         g.Minus(*nc, m_nodeGaloisField);
       }
@@ -986,7 +986,8 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
     itr = m_varList.find (it->first);
     itr2 = m_decodedList.find(it->first);
     if (itr==m_varList.end() && itr2==m_decodedList.end()) {
-      Ptr<NCAttribute> attribute=CreateObject<NCAttribute>(it->second.GetAttribute ());
+      Ptr<NCAttribute> attribute=CreateObject<NCAttribute>(it->second.m_nodeId,it->second.m_index,
+        it->second.m_destId, it->second.m_genTime);
       m_varList.insert(it->first, *attribute);
     }
 //    variableList.clear();
