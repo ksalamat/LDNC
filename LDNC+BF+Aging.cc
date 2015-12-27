@@ -994,7 +994,7 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
     }
     m_variableList.clear();
     for (itr=m_varList.begin();itr!=m_varList.end();itr++){
-      m_variableList.push_back(itr->second);
+      m_variableList.push_back(&(itr->second));
     }
   }
 }
