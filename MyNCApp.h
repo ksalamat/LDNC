@@ -218,6 +218,7 @@ public:
   uint32_t s_nForwardedPackets;
   uint32_t s_nDuplicateRec;
   uint32_t s_nDroppedPackets;
+  uint32_t s_oldestDiscardedNum;
   uint32_t s_bytesTotal;
   double s_packetDelay;
 

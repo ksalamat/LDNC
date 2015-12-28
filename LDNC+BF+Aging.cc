@@ -1247,6 +1247,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         //BufferManagement (we remove the oldest packet from decoded lists)
         RemoveOldest();
         oldestDiscardedNum++;
+        NS_LOG_UNCOND ("DISCARDED BufferManagement at node"<<m_myNodeId);
       }
       g = m_decodingBuf[i-1]; //solved variable is in g
       if (g->m_coefsList.size() !=1){
@@ -1391,6 +1392,7 @@ MyNCApp::GeneratePacket ()
 		{
           RemoveOldest();
           oldestDiscardedNum++;
+          NS_LOG_UNCOND ("DISCARDED BufferManagement at node"<<m_myNodeId);
 		}
 	}
 	//  Simulator::Schedule (Seconds (expVar->GetValue ()), &MyNCAppSource::GeneratePacket, this, node, destInterfaces, expVar, uniVar);
@@ -1461,6 +1463,7 @@ void MyNCApp::PacketInjector ()
     {
  	  RemoveOldest();
  	  oldestDiscardedNum++;
+ 	  NS_LOG_UNCOND ("DISCARDED BufferManagement at node"<<m_myNodeId);
     }
    else {
 		Ptr<NetworkCodedDatagram> p;
@@ -1514,6 +1517,7 @@ Experiment::Experiment(std::string name):
   s_nForwardedPackets (0),
   s_nDuplicateRec (0),
   s_nDroppedPackets (0),
+  s_oldestDiscardedNum (0),
   s_bytesTotal (0),
   s_packetDelay(0.0)
 {
@@ -1667,8 +1671,9 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 	uint32_t nSourcesDuplicateRec = 0;
 	uint32_t nRelaysDuplicateRec = 0;
 	uint32_t nSourcesDroppedPackets = 0;
+	uint32_t nSourcesOldestDiscardedNum = 0;
 	uint32_t nRelaysDroppedPackets = 0;
-	uint32_t totalOldestDiscardedNum = 0;
+	uint32_t nRelaysOldestDiscardedNum = 0;
 	uint32_t nReceivedLinearCombinations = 0;
 	uint32_t bufferOccupation = 0;
 	uint32_t sourceBuffOccupation = 0;
@@ -1689,7 +1694,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		nSourcesForwardedPackets += ptrsrcApp->nForwardedPackets;
 		nSourcesDuplicateRec += ptrsrcApp->nDuplicateRec;
 		nSourcesDroppedPackets += ptrsrcApp->nDroppedPackets;
-		totalOldestDiscardedNum += ptrsrcApp->oldestDiscardedNum;
+		nSourcesOldestDiscardedNum += ptrsrcApp->oldestDiscardedNum;
 		bufferOccupation += (ptrsrcApp->m_decodedBuf).size()+(ptrsrcApp->m_decodingBuf).size();
 		sourceBuffOccupation += (ptrsrcApp->m_buffer).size();
 		s_packetDelay+= ptrsrcApp->packetDelay;
@@ -1709,7 +1714,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		nRelaysForwardedPackets += ptrRlyApp->nForwardedPackets;
 		nRelaysDuplicateRec += ptrRlyApp->nDuplicateRec;
 		nRelaysDroppedPackets += ptrRlyApp->nDroppedPackets;
-		totalOldestDiscardedNum += ptrRlyApp-> oldestDiscardedNum;
+		nRelaysOldestDiscardedNum += ptrRlyApp-> oldestDiscardedNum;
 		bufferOccupation += (ptrRlyApp->m_decodedBuf).size()+(ptrRlyApp->m_decodingBuf).size();
 		s_nReceivedPackets += ptrRlyApp-> nReceivedPackets;
 		s_packetDelay+= ptrsrcApp->packetDelay;
@@ -1723,6 +1728,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 	s_nForwardedPackets = nSourcesForwardedPackets + nRelaysForwardedPackets;
 	s_nDuplicateRec = nSourcesDuplicateRec + nRelaysDuplicateRec;
 	s_nDroppedPackets = nSourcesDroppedPackets + nRelaysDroppedPackets;
+	s_oldestDiscardedNum = nSourcesOldestDiscardedNum + nRelaysOldestDiscardedNum;
 
 	NS_LOG_UNCOND ("----------------------------------------------------------------------------------------------------------------");
 	NS_LOG_UNCOND ("Total Number of generated datagram in sources is : "<<s_totalGeneratedPackets);
@@ -1731,7 +1737,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
     NS_LOG_UNCOND ("Delivery ratio is : "<<((double)s_nReceivedPackets/s_totalInjectedPackets)*100<<" %");
 	NS_LOG_UNCOND ("Total Number of redundant datagram received in nodes is : "<<s_nDuplicateRec);
 	NS_LOG_UNCOND ("Total Number of dropped datagram in nodes is : "<<s_nDroppedPackets);
-	NS_LOG_UNCOND ("Total Number of Oldest Datagrams Discarded"<<totalOldestDiscardedNum);
+	NS_LOG_UNCOND ("Total Number of Oldest Datagrams Discarded is : "<<s_oldestDiscardedNum);
 	NS_LOG_UNCOND ("Total Number of received datagram in all nodes = "<<nReceivedLinearCombinations);
 		    //NS_LOG_UNCOND ("Total Number of datagram forwarded from their source is : "<<m_nSrcForwardedPackets);
 	NS_LOG_UNCOND ("Total Number of datagram forwarded from nodes is : "<<s_nForwardedPackets);
