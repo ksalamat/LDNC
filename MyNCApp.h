@@ -149,6 +149,7 @@ protected:
   double falsePositiveProbability;
 public:
   bool m_running;
+  bool m_changed;
   uint32_t m_rcvCounter;
   uint16_t counter;
   uint16_t m_myNodeId;
