@@ -1781,7 +1781,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		nRelaysOldestDiscardedNum += ptrRlyApp-> oldestDiscardedNum;
 		bufferOccupation += (ptrRlyApp->m_decodedBuf).size()+(ptrRlyApp->m_decodingBuf).size();
 		s_nReceivedPackets += ptrRlyApp-> nReceivedPackets;
-		s_nReceivedStatusFeedbacks += += ptrRlyApp->s_nReceivedStatusFeedbacks;
+		s_nReceivedStatusFeedbacks += ptrRlyApp->nReceivedStatusFeedbacks;
 		s_packetDelay+= ptrsrcApp->packetDelay;
 		NS_LOG_UNCOND ("s_decodedBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodedBuf).size());
 		NS_LOG_UNCOND ("s_decodingBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodingBuf).size());
