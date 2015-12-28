@@ -991,11 +991,12 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
         it->second.m_destId, it->second.m_genTime);
 //      m_varList.insert(it->first, *(attribute));
         m_varList[it->first]=*(attribute);
+        m_variableList.push_back(attribute);
     }
-    m_variableList.clear();
-    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
-      m_variableList.push_back(&(itr->second));
-    }
+//    m_variableList.clear();
+//    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
+//      m_variableList.push_back(&(itr->second));
+//    }
   }
 }
 
@@ -1094,13 +1095,13 @@ int MyNCApp::GausElim (int M, int N, Ptr<Packet> packetIn)
               if (pivot != 1)
                 {
                   // we have to rescale the line by the pivot
+                  m_decodingBuf[k]->Product(m_nodeGaloisField->div(1,pivot), m_nodeGaloisField);
                   for(i= k; i < N ; i++)
                     {
                       m_matrix.SetValue(k, i , m_nodeGaloisField->div(m_matrix.GetValue(k, i), pivot));
                     }
                   //NS_LOG_UNCOND("After Changing PIVOT to 1, printed MATRIX of nodeId="<<m_myNodeId<<" is :");
                   //m_matrix.PrintMatrix(M,N, m_myNodeId);
-                  m_decodingBuf[k]->Product(m_nodeGaloisField->div(1,pivot), m_nodeGaloisField);
                 }
               // make the value under the pivot equal zero
               for(i = k+1; i < M ; i++)
@@ -1277,6 +1278,13 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
       //swap column
       PermuteCol (N-1,i-1,M);
       //remove the variable
+      vector<Ptr<NCAttribute> >::iterator it2;
+      for (it2=m_variableList.begin();it2!=m_variableList.end();it2++){
+    	  if ((*it2)->Key()==it->first){
+    		  it2=m_variableList.erase(it2);
+    		  break;
+    	  }
+      }
       M--;
       N--;
       m_varList.erase(m_varList.find( it->first));

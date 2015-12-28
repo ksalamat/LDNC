@@ -371,6 +371,7 @@ CoefElt::operator== (const CoefElt& coef) const
 CoefElt&
 CoefElt::operator= (const CoefElt& coef)
 {
+	m_coef=coef.m_coef;
 	m_nodeId=coef.m_nodeId;
 	m_index=coef.m_index;
 	m_length=coef.m_length;
