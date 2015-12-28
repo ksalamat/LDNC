@@ -175,6 +175,7 @@ public:
   uint32_t nSrcForwardedPackets;
   uint32_t nForwardedPackets;
   uint32_t nDroppedPackets;
+  uint32_t oldestDiscardedNum;
   uint32_t m_pktSize;
   double m_packetInterval;
   double m_beaconInterval;
