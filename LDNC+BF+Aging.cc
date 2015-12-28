@@ -68,6 +68,7 @@ static const std::size_t PEC = 100;
 static const double DFPP = 0.02;
 static const int variableWeight=1;
 static const int unreceivedWeight=10;
+static const int neighborWeight=5;
 // Aging constants parameters declaration:
 static const float K0 = 25.0;
 static const float K1 = 10.0;
@@ -753,11 +754,10 @@ Ptr<NetworkCodedDatagram>
 	B.resize(m_neighborhood.size());
 	F.resize(len);
 	X.resize(len);
-
+	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
 	for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
     B.at(index)=listIterator->neighborRemainingCapacity;
 		//let's first iterate over the decoded packets
-	  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
     int i=0;
 		for (itr=m_decodedList.begin();itr!=m_decodedList.end();itr++)
 		{
@@ -781,6 +781,9 @@ Ptr<NetworkCodedDatagram>
 					m_lpMatrix.SetValue(index,i,1);
 				}
 			}
+		    if (((itr->second))->attribute.m_destId ==listIterator->neighborId){
+		      F.at(i)=F.at(i) + neighborWeight;
+		    }
       i++;
 		}//for loop over decoded packets
 			//now let's iterate over the decodingList
@@ -818,6 +821,10 @@ Ptr<NetworkCodedDatagram>
 							m_lpMatrix.SetValue(index,i+L,1);
 						}
 					}
+			        if (((itr->second)).m_destId==listIterator->neighborId){
+			          F.at(i)=F.at(i) + (double)neighborWeight/numVar;
+			        }
+
 				} else {
 					NS_LOG_UNCOND("Wrong not found in varlist!!!!");
 				}
@@ -1486,7 +1493,7 @@ Experiment::Experiment()
 
 Experiment::Experiment(std::string name):
  	s_output (name),
-  s_simulationTime (525),
+  s_simulationTime (1500),
   s_verbose (false),
   s_logComponent (false),
   s_nSource (3),
