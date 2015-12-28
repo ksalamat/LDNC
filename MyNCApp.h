@@ -173,6 +173,7 @@ public:
   uint32_t nDuplicateRec;
   uint32_t nReceivedBytes;
   uint32_t nReceivedPackets;
+  uint32_t nReceivedStatusFeedbacks;
   uint32_t nSrcForwardedPackets;
   uint32_t nForwardedPackets;
   uint32_t nDroppedPackets;
@@ -216,6 +217,7 @@ public:
   uint32_t s_totalGeneratedPackets;
   uint32_t s_nSrcForwardedPackets;
   uint32_t s_nReceivedPackets;
+  uint32_t s_nReceivedStatusFeedbacks;
   uint32_t s_nForwardedPackets;
   uint32_t s_nDuplicateRec;
   uint32_t s_nDroppedPackets;

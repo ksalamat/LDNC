@@ -519,6 +519,7 @@ void MyNCApp::Start(){
   nSrcForwardedPackets=0;
   nForwardedPackets=0;
   nReceivedPackets=0;
+  nReceivedStatusFeedbacks=0;
   nReceivedBytes=0;
   packetDelay=0;
   nDroppedPackets=0;
@@ -599,7 +600,7 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 		neighbor.neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" nodeId "<<(int)(neighbor.neighborId)<<" Became neighbor of nodeId "<<m_myNodeId);
 		m_neighborhood.push_back (neighbor);
-		(header.GetPacketType () == 1) ? neighbor.neighborReceivedPacketsneighborReceivedPackets++ : neighbor.neighborReceivedBeacons++;
+		(header.GetPacketType () == 1) ? neighbor.neighborReceivedPackets++ : neighbor.neighborReceivedBeacons++;
 		if (header.GetPacketType()==2)
           {
             listIterator->neighborReceivedStatusFeedbacks++;
@@ -641,7 +642,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 	if (header.GetPacketType () == 0) {
 		nReceivedBeacons++;
 		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
-	} else {
+	} else if (header.GetPacketType () == 1) {
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one datagram in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
 		if (m_decodingBuf.size() < DECODING_BUFF_SIZE)
 		{
@@ -670,6 +671,12 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 			Decode (nc, packetIn);
 		}
 	}
+	else //here we process packets which contain ONLY feedback information (blocking situation at transmitter).
+      {
+        NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one STATUS FEEDBACK in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
+        nReceivedStatusFeedbacks++;
+        //note that we have already got all stuff from the header when we called "UpdateNeighborList(header, senderIp);"
+      }
 }
 
 void MyNCApp::Forward ()
@@ -681,7 +688,37 @@ void MyNCApp::Forward ()
 			Ptr<NetworkCodedDatagram> tmpEncDatagram;
 			tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
 			tmpEncDatagram = Encode();
-			if (tmpEncDatagram!= NULL && !tmpEncDatagram->IsNull())
+			if(tmpEncDatagram!= NULL && tmpEncDatagram->m_blockingSituation)
+              {
+                Ptr<Packet> lcPacket = Create<Packet> (m_pktSize);
+				MyHeader lcHeader;
+				lcHeader.SetNodeId (m_myNodeId);
+				lcHeader.SetPacketType (2);
+				Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
+				Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
+				std::string tmpStr;
+				std::map<std::string, NCAttribute >::iterator itr;
+	            for (itr=m_varList.begin();itr!=m_varList.end();itr++)
+                  {
+                    tempFilter1->insert(itr->first);
+                  }
+                std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
+                for (itr2=m_decodedList.begin(); itr2!=m_decodedList.end(); itr2++)
+	             {
+	               tempFilter2->insert(itr2->first);
+	             }
+				lcHeader.PutDecodingBloomFilter (tempFilter1);
+				lcHeader.PutDecodedBloomFilter (tempFilter2);
+				lcHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
+				lcHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
+				lcHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
+				lcPacket->AddHeader (lcHeader);
+				lcPacket->RemoveAllPacketTags ();
+				lcPacket->RemoveAllByteTags ();
+				sourceSock->Send (lcPacket);
+				NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" "<<"node "<<m_myNodeId<<" is JUST spreading a feedback.");
+              }
+			else if (tmpEncDatagram!= NULL && !tmpEncDatagram->IsNull())
 			{
 				Ptr<Packet> lcPacket = Create<Packet> (m_pktSize);
 				MyHeader lcHeader;
@@ -963,8 +1000,12 @@ Ptr<NetworkCodedDatagram>
 			return nc;
 		} else { //Blocking situation
 			NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
+			//NS_LOG_UNCOND ("let's send only a status feedback then !");
+			Ptr<NetworkCodedDatagram> nc2;
+            nc2 =CreateObject<NetworkCodedDatagram>();
+            nc2-> TriggerFeedbackTransmission();
+            return nc2;
 		}
-
 	}//if(index>0)
 	return NULL;
 }
@@ -1535,6 +1576,7 @@ Experiment::Experiment(std::string name):
   s_totalGeneratedPackets (0),
   s_nSrcForwardedPackets (0),
   s_nReceivedPackets (0),
+  s_nReceivedStatusFeedbacks (0),
   s_nForwardedPackets (0),
   s_nDuplicateRec (0),
   s_nDroppedPackets (0),
@@ -1712,6 +1754,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		s_totalInjectedPackets += ptrsrcApp->m_nInjectedPackets;
 		s_nSrcForwardedPackets += ptrsrcApp->nSrcForwardedPackets;
 		s_nReceivedPackets += ptrsrcApp-> nReceivedPackets;
+		s_nReceivedStatusFeedbacks += ptrsrcApp-> nReceivedStatusFeedbacks;
 		nSourcesForwardedPackets += ptrsrcApp->nForwardedPackets;
 		nSourcesDuplicateRec += ptrsrcApp->nDuplicateRec;
 		nSourcesDroppedPackets += ptrsrcApp->nDroppedPackets;
@@ -1738,6 +1781,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		nRelaysOldestDiscardedNum += ptrRlyApp-> oldestDiscardedNum;
 		bufferOccupation += (ptrRlyApp->m_decodedBuf).size()+(ptrRlyApp->m_decodingBuf).size();
 		s_nReceivedPackets += ptrRlyApp-> nReceivedPackets;
+		s_nReceivedStatusFeedbacks += += ptrRlyApp->s_nReceivedStatusFeedbacks;
 		s_packetDelay+= ptrsrcApp->packetDelay;
 		NS_LOG_UNCOND ("s_decodedBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodedBuf).size());
 		NS_LOG_UNCOND ("s_decodingBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodingBuf).size());
@@ -1760,6 +1804,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 	NS_LOG_UNCOND ("Total Number of dropped datagram in nodes is : "<<s_nDroppedPackets);
 	NS_LOG_UNCOND ("Total Number of Oldest Datagrams Discarded is : "<<s_oldestDiscardedNum);
 	NS_LOG_UNCOND ("Total Number of received datagram in all nodes = "<<nReceivedLinearCombinations);
+	NS_LOG_UNCOND ("Total Number of received status feedbacks in all nodes = "<<s_nReceivedStatusFeedbacks);
 		    //NS_LOG_UNCOND ("Total Number of datagram forwarded from their source is : "<<m_nSrcForwardedPackets);
 	NS_LOG_UNCOND ("Total Number of datagram forwarded from nodes is : "<<s_nForwardedPackets);
 		    //NS_LOG_UNCOND ("Total Number of beacons received in nodes is : "<<m_nReceivedBeacons);
