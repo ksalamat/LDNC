@@ -915,9 +915,11 @@ Ptr<NetworkCodedDatagram>
 						nc->Sum (g, m_nodeGaloisField);
 					}
 					//We have to update waitingList and neighborhood
+					UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
 				}
 			}//for over decodedBuf
 
+            MapType::iterator itr2;
 			for (uint16_t i=0;i<m_decodingBuf.size();i++)
 			{
 				if (uniVar->GetValue (0.0,1.0) < probabilities.at(i))
@@ -935,6 +937,10 @@ Ptr<NetworkCodedDatagram>
 					{
 						nc->Sum (g, m_nodeGaloisField);
 					}
+					for (itr2=g.m_coefsList.begin();itr2!=g.m_coefsList.end();itr2++)
+                      {
+                        UpdateWaitingList(itr2->second.Key());
+                      }
 				}
 			}//for over decodingBuf
 
