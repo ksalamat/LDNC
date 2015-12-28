@@ -24,6 +24,7 @@ public:
   double lastReceptionTime;
   uint32_t neighborReceivedPackets;
   uint32_t neighborReceivedBeacons;
+  uint32_t neighborReceivedStatusFeedbacks;
   uint32_t neighborForwardedPackets;
   uint8_t neighborId;
   uint8_t neighborhoodSize;

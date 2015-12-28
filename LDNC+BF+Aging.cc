@@ -83,6 +83,7 @@ Neighbor::Neighbor ()
   firstReceptionTime = 0;
   lastReceptionTime = 0;
   neighborReceivedPackets = 0;
+  neighborReceivedStatusFeedbacks = 0;
   neighborReceivedBeacons = 0;
   neighborForwardedPackets = 0;
   neighborId = 0;
@@ -560,6 +561,10 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 				listIterator->neighborhoodSize = header.GetNeighborhoodSize();
 				listIterator->neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
 				(header.GetPacketType () == 1) ? listIterator->neighborReceivedPackets++ : listIterator->neighborReceivedBeacons++;
+				if (header.GetPacketType()==2)
+                  {
+                    listIterator->neighborReceivedStatusFeedbacks++;
+                  }
 				newNeighbor = false;
 				break;
 			}
@@ -577,6 +582,10 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 			NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" nodeId "<<(int)(neighbor.neighborId)<<" Became neighbor of nodeId "<<m_myNodeId);
 			m_neighborhood.push_back (neighbor);
 			(header.GetPacketType () == 1) ? neighbor.neighborReceivedPackets++ : neighbor.neighborReceivedBeacons++;
+			if (header.GetPacketType()==2)
+              {
+                listIterator->neighborReceivedStatusFeedbacks++;
+              }
 		}
 	} else {
 		Neighbor neighbor;
@@ -590,7 +599,11 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 		neighbor.neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" nodeId "<<(int)(neighbor.neighborId)<<" Became neighbor of nodeId "<<m_myNodeId);
 		m_neighborhood.push_back (neighbor);
-		(header.GetPacketType () == 1) ? neighbor.neighborReceivedPackets++ : neighbor.neighborReceivedBeacons++;
+		(header.GetPacketType () == 1) ? neighbor.neighborReceivedPacketsneighborReceivedPackets++ : neighbor.neighborReceivedBeacons++;
+		if (header.GetPacketType()==2)
+          {
+            listIterator->neighborReceivedStatusFeedbacks++;
+          }
 		if (m_idle) {
 			m_idle=false;//awake the node to send data
 			Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
@@ -819,7 +832,7 @@ Ptr<NetworkCodedDatagram>
 							//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
 							//X.at(I+L)=0;
 							F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
-							m_lpMatrix.SetValue(index,i+L,1);
+							UpdateNeighborList ();m_lpMatrix.SetValue(index,i+L,1);
 						}
 					}
 			        if (((itr->second)).m_destId==listIterator->neighborId){
@@ -914,12 +927,13 @@ Ptr<NetworkCodedDatagram>
 					{
 						nc->Sum (g, m_nodeGaloisField);
 					}
-					//We have to update waitingList and neighborhood
-					UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
+					//We have to update neighborhood (WL is to be updated Only in Forward)
+					//UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
+					UpdateNeighorhoodEst(m_decodedBuf[i]->attribute.Key());
 				}
 			}//for over decodedBuf
 
-            MapType::iterator itr2;
+            //MapType::iterator itr2;
 			for (uint16_t i=0;i<m_decodingBuf.size();i++)
 			{
 				if (uniVar->GetValue (0.0,1.0) < probabilities.at(i))
@@ -939,8 +953,9 @@ Ptr<NetworkCodedDatagram>
 					}
 					for (itr2=g.m_coefsList.begin();itr2!=g.m_coefsList.end();itr2++)
                       {
-                        UpdateWaitingList(itr2->second.Key());
+                        UpdateNeighorhoodEst(itr2->second.Key());
                       }
+
 				}
 			}//for over decodingBuf
 
