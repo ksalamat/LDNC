@@ -832,7 +832,7 @@ Ptr<NetworkCodedDatagram>
 							//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
 							//X.at(I+L)=0;
 							F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
-							UpdateNeighborList ();m_lpMatrix.SetValue(index,i+L,1);
+							m_lpMatrix.SetValue(index,i+L,1);
 						}
 					}
 			        if (((itr->second)).m_destId==listIterator->neighborId){
@@ -933,7 +933,7 @@ Ptr<NetworkCodedDatagram>
 				}
 			}//for over decodedBuf
 
-            //MapType::iterator itr2;
+            MapType::iterator itr2;
 			for (uint16_t i=0;i<m_decodingBuf.size();i++)
 			{
 				if (uniVar->GetValue (0.0,1.0) < probabilities.at(i))
