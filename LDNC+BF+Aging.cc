@@ -716,7 +716,7 @@ void MyNCApp::Forward ()
 				lcPacket->RemoveAllPacketTags ();
 				lcPacket->RemoveAllByteTags ();
 				sourceSock->Send (lcPacket);
-        Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+        //Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 			} else {
         if (m_changed) {
           lcHeader.SetPacketType (2);
@@ -727,12 +727,13 @@ void MyNCApp::Forward ()
           lcPacket->RemoveAllByteTags ();
           sourceSock->Send (lcPacket);
           m_changed=false;
-          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+         // Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
         }
       }
 		}
     NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" "<<"node "<<m_myNodeId<<" is broadcasting.");
 	}
+	Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 }
 
 Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
@@ -950,7 +951,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
 			}//for over decodingBuf
       if (nc->m_coefsList.size() > MaxNumberOfCoeff){
         NS_LOG_UNCOND("Problem!!!!!!");
-      }      
+      }
 
 			glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
 			return nc;
@@ -1458,7 +1459,7 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 void MyNCApp::RemoveOldest ()
 {
   std::vector<Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
-  pointToOldest = m_decodedBuf.begin(); 
+  pointToOldest = m_decodedBuf.begin();
   int i=0, max=0;
   for (it= m_decodedBuf.begin()+1; it!=m_decodedBuf.end(); it++){
       if ((*it)->attribute.GetGenTime() > (*pointToOldest)->attribute.GetGenTime()) {
