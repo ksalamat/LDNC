@@ -14,7 +14,9 @@ class LinearCombination
 public:
 	LinearCombination();
   ~LinearCombination();
-  std::string pktId;
+  	std::string Key();
+  	uint8_t nodeId;
+  	uint8_t index;
 	uint8_t coeff;
 	uint8_t dstId;
 	uint32_t genTime;
@@ -108,7 +110,6 @@ public:
 	int m_index;
 	bool m_decoded;
 	//char * payload;
-	bool m_blockingSituation;//this flag is false by default
 
 	// Constructor and Destructor
 	NetworkCodedDatagram ();
@@ -125,12 +126,10 @@ public:
 	int GetLength() const;
 	void SetLength (int length);
 	void SetDecoded();
-	void TriggerFeedbackTransmission();
-	void Toggle ();
 	void ResetDecoded ();
 	bool IsDecoded() const;
 	void Product(int coef, galois::GaloisField *galois);
-    void Sum (NetworkCodedDatagram& g, galois::GaloisField *galois);
+  void Sum (NetworkCodedDatagram& g, galois::GaloisField *galois);
 	void Minus (NetworkCodedDatagram& g, galois::GaloisField *galois);
 };
 

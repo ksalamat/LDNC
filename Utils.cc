@@ -45,6 +45,11 @@ LinearCombination::LinearCombination()
 LinearCombination::~LinearCombination()
 {}
 
+std::string LinearCombination::Key(){
+	std::string str = StringConcat (nodeId, index);
+	return str;
+}
+
 
 //// Matrix definition  ///
 Matrix::Matrix ()
@@ -400,7 +405,6 @@ NetworkCodedDatagram::NetworkCodedDatagram ()
   //  cout << "Error allocating memory to NetworkCodedDatagram galios field." << endl;
   //}
 	m_coefsList. clear ();
-	m_blockingSituation=false;
 }
 
 NetworkCodedDatagram::NetworkCodedDatagram (NetworkCodedDatagram& nc) {
@@ -408,7 +412,6 @@ NetworkCodedDatagram::NetworkCodedDatagram (NetworkCodedDatagram& nc) {
 	m_index=nc.m_index;
 	m_decoded=nc.m_decoded;
 	m_coefsList=nc.m_coefsList;
-	m_blockingSituation=nc.m_blockingSituation;
 }
 
 /*
@@ -521,18 +524,6 @@ void
 NetworkCodedDatagram::ResetDecoded()
 {
 	m_decoded=false;
-}
-
-void
-NetworkCodedDatagram::TriggerFeedbackTransmission()
-{
-  m_blockingSituation = true;
-}
-
-void
-NetworkCodedDatagram::Toggle()
-{
-  m_blockingSituation = false;
 }
 
 bool

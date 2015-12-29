@@ -135,10 +135,9 @@ MyHeader::Print (std::ostream &os) const
   os<<"Source="<< m_nodeId <<" Destination=" << m_destId
   <<" nodeId="<< (int)m_nodeId
   <<" m_linCombSize = "<<m_linCombSize;
-	for (uint8_t k=0; k<m_linCombSize; k++)
-	  {
-          std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].pktId<<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
-	  }
+	for (uint8_t k=0; k<m_linCombSize; k++){
+    std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].nodeId<<":"<<m_linComb[k].index <<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
+	}
 }
 
 uint32_t
@@ -158,39 +157,29 @@ MyHeader::Serialize (Buffer::Iterator start) const
  // i.WriteU32 (m_time);
   i.WriteU8 (m_neighborhoodSize);
   i.WriteU8 (m_remainingCapacity);
-  i.WriteU8 (m_linCombSize);
+  i.WriteU8 (m_linComb.size());
   i.WriteU8 (m_decodingBufSize);
   i.WriteU16 (m_decodedTableSize);
   i.WriteU16 (m_decodedInsertedElementCount);
   i.WriteU16 (m_decodingTableSize);
   i.WriteU16 (m_decodingInsertedElementCount);
-  for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++)
-    {
+  for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++) {
       i.WriteU8 (m_decodedBitTable[j]);
-    }
-  for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++)
-    {
+  }
+  for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++) {
       i.WriteU8 (m_decodingBitTable[j]);
-    }
-  std::string tmpStr;
-  std::string colon = ":";
-  size_t found;
-  uint16_t nodeId, index;
-	nodeId=index=0;
-  for (uint8_t k1=0; k1!=m_linCombSize; k1++)
-    {
-      found = m_linComb[k1].pktId.find (colon);
-      tmpStr = m_linComb[k1].pktId.substr (0, found);
-      std::stringstream (tmpStr) >> nodeId;
-      found++;
-      tmpStr = m_linComb[k1].pktId.substr (found, m_linComb[k1].pktId.size () - found);
-      std::stringstream (tmpStr) >> index;
-      i.WriteU8 (nodeId);
-      i.WriteU8 (index);
+  }
+  for (uint8_t k1=0; k1!=m_linCombSize; k1++) {
+      i.WriteU8 (m_linComb[k1].nodeId);
+      i.WriteU8 (m_linComb[k1].index);
       i.WriteU8 (m_linComb[k1].coeff);
       i.WriteU8 (m_linComb[k1].dstId);
       i.WriteU32 (m_linComb[k1].genTime);
-    }
+  }
+  if (m_linCombSize>MaxNumberOfCoeff)  {
+       NS_LOG_UNCOND("something wrong");
+  }
+
 }
 
 uint32_t
@@ -229,18 +218,20 @@ MyHeader::Deserialize (Buffer::Iterator start)
     }
   m_linComb.clear ();
   LinearCombination lc;
-  uint16_t nodeId,index;
-  nodeId=index=0;
   for (uint8_t k1=0; k1!=m_linCombSize; k1++)
     {
-      nodeId = i.ReadU8 ();
-      index = i.ReadU8 ();
-      lc. pktId =  StringConcat (nodeId, index);
-      lc. coeff = i.ReadU8 ();
-      lc. dstId= i.ReadU8 ();
+      lc.nodeId = i.ReadU8 ();
+      lc.index = i.ReadU8 ();
+      lc.coeff = i.ReadU8 ();
+      lc.dstId= i.ReadU8 ();
       lc.genTime= i.ReadU32 ();
       m_linComb. push_back (lc);
     }
+    if (m_linCombSize>MaxNumberOfCoeff)  {
+       NS_LOG_UNCOND("something wrong");
+    }
+
+
 
 // we return the number of bytes effectively read.
   return GetSerializedSize ();
@@ -283,9 +274,9 @@ MyHeader::SetRemainingCapacity (uint8_t remainingCapacity)
 }
 
 void
-MyHeader::SetLinearCombinationSize (uint8_t size)
+MyHeader::SetLinearCombinationSize ()
 {
-	m_linCombSize = size;
+	m_linCombSize = m_linComb.size();
 }
 
 uint8_t
@@ -520,7 +511,6 @@ void MyNCApp::Start(){
   nSrcForwardedPackets=0;
   nForwardedPackets=0;
   nReceivedPackets=0;
-  nReceivedStatusFeedbacks=0;
   nReceivedBytes=0;
   packetDelay=0;
   nDroppedPackets=0;
@@ -648,27 +638,19 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 	if (header.GetPacketType () == 0) {
 		nReceivedBeacons++;
 		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
-	} else if (header.GetPacketType () == 1) {
+	} else {
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one datagram in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
 		if (m_decodingBuf.size() < DECODING_BUFF_SIZE)
 		{
 			Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
 			CoefElt coef;
-			std::string tmpStr;
-			std::string colon = ":";
-			int value;
 			for (size_t j=0 ;j < header.GetLinearCombinationSize (); j++) {
-				coef. SetCoef (header. m_linComb[j].coeff);
-				coef. SetDestination (header. m_linComb[j].dstId);
+				coef.SetCoef (header. m_linComb[j].coeff);
+				coef.SetDestination (header.m_linComb[j].dstId);
 				coef.SetGenTime(header. m_linComb[j].genTime);
-				std::string strPktId = header.m_linComb[j].pktId;
-				size_t found = strPktId.find (colon);
-				tmpStr = strPktId.substr (0, found);
-				std::stringstream (tmpStr) >> value;
-				coef. m_nodeId=value;
-				found++;
-				tmpStr = strPktId.substr (found, strPktId.size () - found);
-				std::stringstream (tmpStr) >> coef. m_index;
+				std::string strPktId = header.m_linComb[j].Key();
+				coef.SetNodeId(header.m_linComb[j].nodeId);
+        coef.SetIndex(header.m_linComb[j].index);
 //				nc ->m_coefsList.insert(MapType::value_type(strPktId, coef));
         nc ->m_coefsList[strPktId]=coef;
 			}
@@ -677,12 +659,6 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 			Decode (nc, packetIn);
 		}
 	}
-	else //here we process packets which contain ONLY feedback information (blocking situation at transmitter).
-      {
-        NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one STATUS FEEDBACK in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
-        nReceivedStatusFeedbacks++;
-        //note that we have already got all stuff from the header when we called "UpdateNeighborList(header, senderIp);"
-      }
 }
 
 void MyNCApp::Forward ()
@@ -694,10 +670,10 @@ void MyNCApp::Forward ()
 			Ptr<NetworkCodedDatagram> tmpEncDatagram;
 			tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
 			tmpEncDatagram = Encode();
-<<<<<<< HEAD
       Ptr<Packet> lcPacket = Create<Packet> (m_pktSize);
       MyHeader lcHeader;
       lcHeader.SetNodeId (m_myNodeId);
+      lcHeader.SetDestination(255);
       Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       std::map<std::string, NCAttribute >::iterator itr;
@@ -720,24 +696,22 @@ void MyNCApp::Forward ()
         //the line below has changed in the forthcoming: each var should have its own genTime
 				//lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
         MapType::iterator it;
-        std::stringstream ss;
-        ss << m_myNodeId;
-        std::string strNodeId = ss.str();
-        std::string colon = ":";
 				LinearCombination lc;
+        lcHeader.m_linComb.clear();
 				for (it=tmpEncDatagram->m_coefsList.begin (); it!=tmpEncDatagram->m_coefsList.end (); it++)
 				{
-					lc.pktId = it->first;
-					UpdateNeighorhoodEst(lc.pktId);
+					lc.nodeId = (*it).second.GetNodeId();
+          lc.index=(*it).second.GetIndex();
+					UpdateNeighorhoodEst(lc.Key());
 					if (it->second.GetNodeId()==m_myNodeId) {// we are the source of the packet so we have to update waitingList to do backpressure
-						UpdateWaitingList(lc.pktId);
+						UpdateWaitingList(lc.Key());
 					}
 					lc.coeff = (*it).second.GetCoef();
 					lc.dstId = (*it).second.GetDestination();
 					lc.genTime= (*it).second.GetGenTime();
 					lcHeader.m_linComb.push_back (lc);
 				}
-				lcHeader.SetLinearCombinationSize (lcHeader.m_linComb.size ());
+				lcHeader.SetLinearCombinationSize ();
 				lcPacket->AddHeader (lcHeader);
 				lcPacket->RemoveAllPacketTags ();
 				lcPacket->RemoveAllByteTags ();
@@ -746,13 +720,14 @@ void MyNCApp::Forward ()
 			} else {
         if (m_changed) {
           lcHeader.SetPacketType (2);
-          lcHeader.SetLinearCombinationSize (0);
+          lcHeader.m_linComb.clear();
+          lcHeader.SetLinearCombinationSize ();
           lcPacket->AddHeader (lcHeader);
           lcPacket->RemoveAllPacketTags ();
           lcPacket->RemoveAllByteTags ();
           sourceSock->Send (lcPacket);
           m_changed=false;
-               Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
         }
       }
 		}
@@ -760,15 +735,12 @@ void MyNCApp::Forward ()
 	}
 }
 
-Ptr<NetworkCodedDatagram>
- MyNCApp::Encode ()
+Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
 {
 	int L,l;
 	int coef;//choice, order;
 	NetworkCodedDatagram g;
-	Ptr<NetworkCodedDatagram> nc;
-
-	nc =CreateObject<NetworkCodedDatagram>();
+	Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
 	L = m_decodedBuf.size();
 	l = m_decodedBuf.size() + m_varList.size();
 	int len = m_decodingBuf.size() + m_decodedBuf.size();
@@ -785,31 +757,31 @@ Ptr<NetworkCodedDatagram>
 
 	int numVar=0;
 	int index=0;
-	std::vector<double> var,F, X, B;
+  double val;
+	std::vector<double> var,F, A, B;
 	m_lpMatrix.A.clear();
 	m_lpMatrix.SetDimensions((int) m_neighborhood.size(), l);
 	B.clear();
 	B.resize(m_neighborhood.size());
 	F.resize(len);
-	X.resize(len);
+  A.resize(len);
+  for (int i=0;i<len;A.at(i++)=0);
 	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
 	for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
     B.at(index)=listIterator->neighborRemainingCapacity;
 		//let's first iterate over the decoded packets
     int i=0;
-		for (itr=m_decodedList.begin();itr!=m_decodedList.end();itr++)
-		{
+		for (itr=m_decodedList.begin();itr!=m_decodedList.end();itr++) {
 			F.at(i)=0;
 			std::string tmpStr = itr->first;
-			if (!listIterator->neighborDecodedFilter->contains(tmpStr))
-			{
-				if (listIterator->neighborDecodingFilter->contains(tmpStr))
-				{
+			if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
+				if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
 					F.at(i)=F.at(i) + variableWeight;
 						//X.at(i)=1;
 						//add the constraints here
 						//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
 						//X.at(i)=0;
+          A.at(i)=1;
 				} else {
 					F.at(i)=F.at(i) + unreceivedWeight;
 						//X.at(i)=1;
@@ -817,6 +789,7 @@ Ptr<NetworkCodedDatagram>
 						//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
 						//X.at(i)=0;
 					m_lpMatrix.SetValue(index,i,1);
+          A.at(i)=1;
 				}
         if (((itr->second))->attribute.m_destId ==listIterator->neighborId){
           F.at(i)=F.at(i) + neighborWeight;
@@ -825,40 +798,36 @@ Ptr<NetworkCodedDatagram>
       i++;
 		}//for loop over decoded packets
 			//now let's iterate over the decodingList
-		for (uint16_t i=0; i< len-L; i++)
-		{
+		for (uint16_t i=0; i< len-L; i++) {
+      m_lpMatrix.SetValue(index,i+L,0);
 		    //line below should change...
 			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
 			MapType::iterator it;
 			std::map<std::string, NCAttribute >::iterator itr;
-			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++)
-			{
+			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++) {
 				itr = m_varList.find (it->first);
 				//itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
-				if (itr!=m_varList.end())//If you find the variable in the variable list
-				{
-//					uint16_t I = (uint16_t)(itr - m_varList.begin());//find the index of this variable in the varList!!!
+				if (itr!=m_varList.end()) { //If you find the variable in the variable list
 					std::string tmpStr = itr->first;
-					if (!listIterator->neighborDecodedFilter->contains(tmpStr))
-					{
-						if (listIterator->neighborDecodingFilter->contains(tmpStr))
-						{
+					if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
+						if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
 							F.at(L+i)=F.at(L+i) + (double)variableWeight/numVar;
 							//X.at(I+L)=1;
 							//add the constraints here
 							//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
 							//X.at(I+L)=0;
-						}
-						else
-						{
+              A.at(L+i)=numVar;
+						} else {
 							//X.at(I+L)=1;
 							//add the constraints here
 							//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
 							//X.at(I+L)=0;
 							F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
-							m_lpMatrix.SetValue(index,i+L,1);
+              val=m_lpMatrix.GetValue(index,i+L)+1;
+							m_lpMatrix.SetValue(index,i+L,val);
+              A.at(L+i)=numVar;
 						}
-            if (((itr->second)).m_destId==listIterator->neighborId){
+            if (((itr->second)).m_destId==listIterator->neighborId) {
               F.at(i)=F.at(i) + (double)neighborWeight/numVar;
             }
 					}
@@ -867,7 +836,6 @@ Ptr<NetworkCodedDatagram>
 				}
 			}
 		}// for loop over decodingList
-
 			//okay! now add another constraint
 			//constraints.add(new LinearConstraint(AA[index],Relationship.LEQ,B[index]));
 		index++;
@@ -881,12 +849,12 @@ Ptr<NetworkCodedDatagram>
 		glp_set_prob_name(myLpProblem, "myLpProblem");
 		glp_set_obj_dir (myLpProblem, GLP_MAX);//maximize
 		glp_add_rows (myLpProblem, m_neighborhood.size()+1);
-		glp_add_cols (myLpProblem, l);
+		glp_add_cols (myLpProblem, len);
 		int nConstraintMatrixElements =0;
 			//let us define the bounds of the cols here (0<=p_i<=1)
 		for (int i=0; i<len;i++)
 		{
-			glp_set_col_bnds (myLpProblem, i+1, GLP_DB, 0.0, 0.9999);
+			glp_set_col_bnds (myLpProblem, i+1, GLP_DB, 0.0, 1.0);
 			glp_set_obj_coef(myLpProblem, i+1, F.at(i));
 		}
 			//let us now set the rows bounds (0<= summation of probabilities <= capacity of corresponding neighbor)
@@ -897,11 +865,11 @@ Ptr<NetworkCodedDatagram>
 		int i=0;
 		for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++)
 		{
-			for (int j=0; j<l;j++)
+			for (int j=0; j<len;j++)
 			{
-				ia[i*l+j+1]=i+1;
-				ja[i*l+j+1]=j+1;
-				ar[i*l+j+1]=m_lpMatrix.GetValue(i,j);
+				ia[i*len+j+1]=i+1;
+				ja[i*len+j+1]=j+1;
+				ar[i*len+j+1]=m_lpMatrix.GetValue(i,j);
 				nConstraintMatrixElements++;
 			}
 			if (listIterator->neighborRemainingCapacity>0) {
@@ -911,11 +879,11 @@ Ptr<NetworkCodedDatagram>
 			}
 			i++;
 		}
-		for (int j=0; j<l;j++)
+		for (int j=0; j<len;j++)
 		{
-			ia[M*l+j+1]=M+1;
-			ja[i*l+j+1]=j+1;
-			ar[i*l+j+1]=1;
+			ia[i*len+j+1]=m_neighborhood.size()+1;
+			ja[i*len+j+1]=j+1;
+			ar[i*len+j+1]=A.at(j);
 			nConstraintMatrixElements++;
 		}
 		glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
@@ -924,8 +892,8 @@ Ptr<NetworkCodedDatagram>
 		glp_simplex(myLpProblem, NULL);
 		double objective= glp_get_obj_val(myLpProblem);
 		if (objective>0.0) {
-			std::vector<double> probabilities(l);
-			for(int i=0; i<l;i++)
+			std::vector<double> probabilities(len);
+			for(int i=0; i<len;i++)
 			{
 				probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
 			}
@@ -935,9 +903,10 @@ Ptr<NetworkCodedDatagram>
 
       //we build F on map order so the order should be map order there !
       std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
-      int i=0;
+      int i=0, varNum=0;
 			for (itr2=m_decodedList.begin();itr2!=m_decodedList.end();itr2++) {
 				if (uniVar->GetValue(0.0,1.0) < probabilities.at(i)){
+          varNum++;
 					coef = uniVar->GetInteger (1,255);
 					//NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
 					g=*(itr2->second->ncDatagram);
@@ -958,11 +927,12 @@ Ptr<NetworkCodedDatagram>
         i++;
 			}//for over decodedBuf
 
-            MapType::iterator itr2;
+            //MapType::iterator itr2;
 			for (uint16_t i=0;i<m_decodingBuf.size();i++)
 			{
 				if (uniVar->GetValue (0.0,1.0) < probabilities.at(i))
 				{
+          numVar=numVar+m_decodingBuf[i]->m_coefsList.size();
 					coef = uniVar->GetInteger (1,255);
 					g=(*m_decodingBuf.at(i));
 					g.Product(coef, m_nodeGaloisField );
@@ -978,23 +948,20 @@ Ptr<NetworkCodedDatagram>
 					}
 				}
 			}//for over decodingBuf
+      if (nc->m_coefsList.size() > MaxNumberOfCoeff){
+        NS_LOG_UNCOND("Problem!!!!!!");
+      }      
 
 			glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
 			return nc;
 		} else { //Blocking situation
 			NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
-			//NS_LOG_UNCOND ("let's send only a status feedback then !");
-			Ptr<NetworkCodedDatagram> nc2;
-            nc2 =CreateObject<NetworkCodedDatagram>();
-            nc2-> TriggerFeedbackTransmission();
-            return nc2;
 		}
 	}//if(index>0)
 	return NULL;
 }
 
-void MyNCApp::Reduce (NetworkCodedDatagram& g)
-{
+void MyNCApp::Reduce (NetworkCodedDatagram& g) {
   MapType::iterator it;
   std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
 	std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
@@ -1491,13 +1458,17 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 void MyNCApp::RemoveOldest ()
 {
   std::vector<Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
-  pointToOldest = m_decodedBuf.begin(); //;
-  for (it= m_decodedBuf.begin(); it!=m_decodedBuf.end(); it++){
+  pointToOldest = m_decodedBuf.begin(); 
+  int i=0, max=0;
+  for (it= m_decodedBuf.begin()+1; it!=m_decodedBuf.end(); it++){
       if ((*it)->attribute.GetGenTime() > (*pointToOldest)->attribute.GetGenTime()) {
           pointToOldest=it;
+          max=i;
       }
-  }
+      i++;
 
+  }
+     NS_LOG_UNCOND("Oldest Packet in : "<< max);
   m_decodedList.erase(m_decodedList.find((*pointToOldest)->attribute.Key()));
   m_decodedBuf.erase(pointToOldest);
 }
@@ -1543,7 +1514,7 @@ Experiment::Experiment()
 
 Experiment::Experiment(std::string name):
  	s_output (name),
-  s_simulationTime (1500),
+  s_simulationTime (1000),
   s_verbose (false),
   s_logComponent (false),
   s_nSource (3),
@@ -1557,7 +1528,6 @@ Experiment::Experiment(std::string name):
   s_totalGeneratedPackets (0),
   s_nSrcForwardedPackets (0),
   s_nReceivedPackets (0),
-  s_nReceivedStatusFeedbacks (0),
   s_nForwardedPackets (0),
   s_nDuplicateRec (0),
   s_nDroppedPackets (0),
@@ -1735,7 +1705,6 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		s_totalInjectedPackets += ptrsrcApp->m_nInjectedPackets;
 		s_nSrcForwardedPackets += ptrsrcApp->nSrcForwardedPackets;
 		s_nReceivedPackets += ptrsrcApp-> nReceivedPackets;
-		s_nReceivedStatusFeedbacks += ptrsrcApp-> nReceivedStatusFeedbacks;
 		nSourcesForwardedPackets += ptrsrcApp->nForwardedPackets;
 		nSourcesDuplicateRec += ptrsrcApp->nDuplicateRec;
 		nSourcesDroppedPackets += ptrsrcApp->nDroppedPackets;
@@ -1762,7 +1731,6 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		nRelaysOldestDiscardedNum += ptrRlyApp-> oldestDiscardedNum;
 		bufferOccupation += (ptrRlyApp->m_decodedBuf).size()+(ptrRlyApp->m_decodingBuf).size();
 		s_nReceivedPackets += ptrRlyApp-> nReceivedPackets;
-		s_nReceivedStatusFeedbacks += ptrRlyApp->nReceivedStatusFeedbacks;
 		s_packetDelay+= ptrsrcApp->packetDelay;
 		NS_LOG_UNCOND ("s_decodedBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodedBuf).size());
 		NS_LOG_UNCOND ("s_decodingBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodingBuf).size());
@@ -1785,7 +1753,6 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 	NS_LOG_UNCOND ("Total Number of dropped datagram in nodes is : "<<s_nDroppedPackets);
 	NS_LOG_UNCOND ("Total Number of Oldest Datagrams Discarded is : "<<s_oldestDiscardedNum);
 	NS_LOG_UNCOND ("Total Number of received datagram in all nodes = "<<nReceivedLinearCombinations);
-	NS_LOG_UNCOND ("Total Number of received status feedbacks in all nodes = "<<s_nReceivedStatusFeedbacks);
 		    //NS_LOG_UNCOND ("Total Number of datagram forwarded from their source is : "<<m_nSrcForwardedPackets);
 	NS_LOG_UNCOND ("Total Number of datagram forwarded from nodes is : "<<s_nForwardedPackets);
 		    //NS_LOG_UNCOND ("Total Number of beacons received in nodes is : "<<m_nReceivedBeacons);

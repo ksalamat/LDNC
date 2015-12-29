@@ -67,7 +67,7 @@ public:
   uint8_t GetNeighborhoodSize(void) const;
   void SetNeighborDecodingBufSize (uint8_t size);
   uint8_t GetNeighborDecodingBufSize(void) const;
-  void SetLinearCombinationSize (uint8_t size);
+  void SetLinearCombinationSize ();
   uint8_t GetLinearCombinationSize (void) const;
   std::vector<LinearCombination> m_linComb;
   std::vector<uint8_t> m_pktIdLength;
@@ -174,7 +174,6 @@ public:
   uint32_t nDuplicateRec;
   uint32_t nReceivedBytes;
   uint32_t nReceivedPackets;
-  uint32_t nReceivedStatusFeedbacks;
   uint32_t nSrcForwardedPackets;
   uint32_t nForwardedPackets;
   uint32_t nDroppedPackets;
@@ -218,7 +217,6 @@ public:
   uint32_t s_totalGeneratedPackets;
   uint32_t s_nSrcForwardedPackets;
   uint32_t s_nReceivedPackets;
-  uint32_t s_nReceivedStatusFeedbacks;
   uint32_t s_nForwardedPackets;
   uint32_t s_nDuplicateRec;
   uint32_t s_nDroppedPackets;
