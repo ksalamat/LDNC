@@ -356,10 +356,10 @@ DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
   MapType::iterator it=nc->m_coefsList.begin();
   attribute.m_nodeId=it->second.m_nodeId;
   attribute.m_index=it->second.m_index;
-	attribute.m_destId=it->second.m_destId;
-	attribute.m_genTime=it->second.GetGenTime();
-	attribute.m_receptionNum=0;
-	attribute.m_sendingNum=0;
+  attribute.m_destId=it->second.m_destId;
+  attribute.m_genTime=it->second.GetGenTime();
+  attribute.m_receptionNum=0;
+  attribute.m_sendingNum=0;
   ncDatagram=nc;
 }
 
@@ -427,6 +427,7 @@ MyNCApp::SetupSockets () {
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
     sinkSock = Socket::CreateSocket (GetNode(), tid);
 	sourceSock = Socket::CreateSocket (GetNode(), tid);
+	beaconSock = Socket::CreateSocket (GetNode(), tid);
     m_myNCAppIp = GetNode()->GetObject<Ipv4> ()->GetAddress (1, 0).GetLocal ();
 	InetSocketAddress local = InetSocketAddress (m_myNCAppIp, m_port);
     sinkSock->Bind (local);
@@ -434,6 +435,8 @@ MyNCApp::SetupSockets () {
 	InetSocketAddress remote = InetSocketAddress (Ipv4Address ("10.1.1.255"), m_port);
 	sourceSock->SetAllowBroadcast (true);
 	sourceSock->Connect (remote);
+	beaconSock->SetAllowBroadcast (true);
+	beaconSock->Connect (remote);
 }
 
 void
@@ -490,7 +493,7 @@ MyNCApp::GenerateBeacon ()
 	beaconPacket-> AddHeader (beaconHeader);
 //	delete tempFilter1;
 //	delete tempFilter2;
-	sourceSock-> Send (beaconPacket);
+	beaconSock-> Send (beaconPacket);
 	nGeneratedBeacons++;
 	Simulator::Schedule (Seconds (m_beaconInterval), &MyNCApp::GenerateBeacon, this);
 }
