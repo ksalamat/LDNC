@@ -134,7 +134,7 @@ public:
   void GeneratePacket();
   void PacketInjector();
   void RemoveOldest ();
-protected:
+public:
   std::list<Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source
   bool m_idle; //indicate is the app is sending packet or just beacon
@@ -144,10 +144,11 @@ protected:
   Ptr<Socket> sinkSock;
   Ptr<Socket> sourceSock;
   Ptr<Socket> beaconSock;
+  
   galois::GaloisField *m_nodeGaloisField;
   std::size_t predictedElementCount;
   double falsePositiveProbability;
-public:
+
   bool m_running;
   bool m_changed;
   bool m_degraded;//indicate if we are a degraded node (only using decoded packet in forwarding)

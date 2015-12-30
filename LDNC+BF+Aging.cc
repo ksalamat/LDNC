@@ -397,7 +397,7 @@ MyNCApp::MyNCApp(): Application()
   m_decodedList.clear ();
 	m_decodingBuf. clear ();
 	m_varList. clear ();
-	m_packetInterval=0.008;
+	m_packetInterval=0.08;
 	m_beaconInterval=1.0;
 	double mean = 1;
 	expVar= CreateObject<ExponentialRandomVariable> ();
@@ -418,20 +418,19 @@ void MyNCApp::MakeSource(){
 	m_nGeneratedPackets=0;
 	m_nInjectedPackets=0;
 	m_nErasedElements=0;
-    m_waitingList.clear ();
+  m_waitingList.clear ();
 }
 
 
 void
 MyNCApp::SetupSockets () {
-    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-    sinkSock = Socket::CreateSocket (GetNode(), tid);
-	sourceSock = Socket::CreateSocket (GetNode(), tid);
-	beaconSock = Socket::CreateSocket (GetNode(), tid);
+  TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+  sinkSock = Socket::CreateSocket (GetNode(), tid);
+   sourceSock = Socket::CreateSocket (GetNode(), tid);
     m_myNCAppIp = GetNode()->GetObject<Ipv4> ()->GetAddress (1, 0).GetLocal ();
 	InetSocketAddress local = InetSocketAddress (m_myNCAppIp, m_port);
-    sinkSock->Bind (local);
-    sinkSock->SetRecvCallback (MakeCallback (&MyNCApp::Receive, this));
+  sinkSock->Bind (local);
+  sinkSock->SetRecvCallback (MakeCallback (&MyNCApp::Receive, this));
 	InetSocketAddress remote = InetSocketAddress (Ipv4Address ("10.1.1.255"), m_port);
 	sourceSock->SetAllowBroadcast (true);
 	sourceSock->Connect (remote);
@@ -455,6 +454,8 @@ MyNCApp::GenerateBeacon ()
 	std::list<Neighbor>::iterator it;
 	Time now = Simulator::Now ();
 	// First check if there is inactive neighbors
+  if (beaconSock!=sourceSock) 
+    NS_LOG_UNCOND("Something WEIRDDDDDDDD");
 	for (it=m_neighborhood.begin(); it!=m_neighborhood.end();it++) {
 		if (now.GetSeconds() - it->lastReceptionTime > NEIGHBOR_TIMER) {
 			it = m_neighborhood.erase(it);
@@ -552,11 +553,11 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 				listIterator->neighborDecodedFilter = header.GetDecodedBloomFilter (PEC, DFPP);
 				listIterator->neighborhoodSize = header.GetNeighborhoodSize();
 				listIterator->neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
-				(header.GetPacketType () == 1) ? listIterator->neighborReceivedPackets++ : listIterator->neighborReceivedBeacons++;
-				if (header.GetPacketType()==2)
-                  {
-                    listIterator->neighborReceivedStatusFeedbacks++;
-                  }
+        switch (header.GetPacketType ())  {
+          case 0: listIterator->neighborReceivedBeacons++;
+          case 1: listIterator->neighborReceivedPackets++;
+          case 2: listIterator->neighborReceivedStatusFeedbacks++;
+        }
 				newNeighbor = false;
 				break;
 			}
@@ -571,13 +572,13 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
 			neighbor.neighborDecodedFilter = header.GetDecodedBloomFilter (PEC, DFPP);
 			neighbor.neighborhoodSize = header.GetNeighborhoodSize ();
 			neighbor.neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
+      switch (header.GetPacketType ())  {
+        case 0: neighbor.neighborReceivedBeacons++;
+        case 1: neighbor.neighborReceivedPackets++;
+        case 2: neighbor.neighborReceivedStatusFeedbacks++;
+      }
 			NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" nodeId "<<(int)(neighbor.neighborId)<<" Became neighbor of nodeId "<<m_myNodeId);
 			m_neighborhood.push_back (neighbor);
-			(header.GetPacketType () == 1) ? neighbor.neighborReceivedPackets++ : neighbor.neighborReceivedBeacons++;
-			if (header.GetPacketType()==2)
-              {
-                listIterator->neighborReceivedStatusFeedbacks++;
-              }
 		}
 	} else {
 		Neighbor neighbor;
@@ -598,6 +599,7 @@ void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
     }
 		if (m_idle) {
 			m_idle=false;//awake the node to send data
+      m_changed=true;
 			Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 		}
 	}
@@ -637,9 +639,9 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 	UpdateNeighborList(header, senderIp);
 	if (header.GetPacketType () == 0) {
 		nReceivedBeacons++;
-		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
+		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<(int)header.GetNodeId());
 	} else {
-		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one datagram in a node "<<m_myNodeId<<" from : "<<header.GetNodeId());
+		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one datagram in a node "<<m_myNodeId<<" from : "<<(int)header.GetNodeId());
 		if (m_decodingBuf.size() < DECODING_BUFF_SIZE)
 		{
 			Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
@@ -667,7 +669,7 @@ void MyNCApp::Forward ()
 	if (!m_idle) {
 		std::string tmpStr;
 		if (!m_decodedBuf.empty () || !m_decodingBuf.empty()) {
-			Ptr<NetworkCodedDatagram> tmpEncDatagram;
+  		Ptr<NetworkCodedDatagram> tmpEncDatagram;
 			tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
 			tmpEncDatagram = Encode();
       Ptr<Packet> lcPacket = Create<Packet> (m_pktSize);
@@ -716,7 +718,7 @@ void MyNCApp::Forward ()
 				lcPacket->RemoveAllPacketTags ();
 				lcPacket->RemoveAllByteTags ();
 				sourceSock->Send (lcPacket);
-        //Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+        Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 			} else {
         if (m_changed) {
           lcHeader.SetPacketType (2);
@@ -727,37 +729,32 @@ void MyNCApp::Forward ()
           lcPacket->RemoveAllByteTags ();
           sourceSock->Send (lcPacket);
           m_changed=false;
-         // Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+//          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
         }
       }
 		}
-    NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" "<<"node "<<m_myNodeId<<" is broadcasting.");
 	}
-	Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 }
 
-Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
-{
+Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
   int L,l,len;
   int coef;//choice, order;
   NetworkCodedDatagram g;
   Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
   L = m_decodedBuf.size();
-  l = m_decodedBuf.size() + m_varList.size();
   if (m_degraded) {
     len = m_decodedBuf.size();
+    l = m_decodedBuf.size();
   } else {
     len = m_decodedBuf.size()+m_decodingBuf.size();
+    l = m_decodedBuf.size() + m_varList.size();
   }
-
   std::list<Neighbor>::iterator listIterator;
   // For encoding we should have received packets
-  if (l==0)
-  {
+  if (l==0){
     return NULL;
   }
-  if (len ==0)
-  {
+  if (len ==0) {
     NS_LOG_UNCOND ("ERROR : LEN ==0 while L!=0");
   }
 
@@ -844,35 +841,31 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
           }
         }
       }// for loop over decodingList}
-      index++;
     }//end of iteration over the neighborhood
-
-    if(index>0)
-    {
-      //here we define our problem
-      glp_prob *myLpProblem;
-      myLpProblem = glp_create_prob();
-      glp_set_prob_name(myLpProblem, "myLpProblem");
-      glp_set_obj_dir (myLpProblem, GLP_MAX);//maximize
-      glp_add_rows (myLpProblem, m_neighborhood.size()+1);
-      glp_add_cols (myLpProblem, len);
-      int nConstraintMatrixElements =0;
-      //let us define the bounds of the cols here (0<=p_i<=1)
-      for (int i=0; i<len;i++)
-      {
-        glp_set_col_bnds (myLpProblem, i+1, GLP_DB, 0.0, 1.0);
-        glp_set_obj_coef(myLpProblem, i+1, F.at(i));
-      }
-      //let us now set the rows bounds (0<= summation of probabilities <= capacity of corresponding neighbor)
-      //before to loading the constraint matrix we should prepare the required args (ia[], ja[], and ar[])
-      int ia[1+1000], ja[1+1000];
-      double ar[1+1000];
-      int M= (int)m_neighborhood.size();
-      int i=0;
-      for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++)
-      {
-        for (int j=0; j<len;j++)
-        {
+    index++;
+  }
+  if(index>0) {
+    //here we define our problem
+    glp_prob *myLpProblem;
+    myLpProblem = glp_create_prob();
+    glp_set_prob_name(myLpProblem, "myLpProblem");
+    glp_set_obj_dir (myLpProblem, GLP_MAX);//maximize
+    glp_add_rows (myLpProblem, m_neighborhood.size()+1);
+    glp_add_cols (myLpProblem, len);
+    int nConstraintMatrixElements =0;
+    //let us define the bounds of the cols here (0<=p_i<=1)
+    for (int i=0; i<len;i++) {
+      glp_set_col_bnds (myLpProblem, i+1, GLP_DB, 0.0, 1.0);
+      glp_set_obj_coef(myLpProblem, i+1, F.at(i));
+    }
+    //let us now set the rows bounds (0<= summation of probabilities <= capacity of corresponding neighbor)
+    //before to loading the constraint matrix we should prepare the required args (ia[], ja[], and ar[])
+    int ia[1+1000], ja[1+1000];
+    double ar[1+1000];
+    int M= (int)m_neighborhood.size();
+    int i=0;
+    for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++) {
+        for (int j=0; j<len;j++) {
           ia[i*len+j+1]=i+1;
           ja[i*len+j+1]=j+1;
           ar[i*len+j+1]=m_lpMatrix.GetValue(i,j);
@@ -884,20 +877,19 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
           glp_set_row_bnds(myLpProblem, i+1, GLP_FX, 0.0, 0.0);
         }
         i++;
-      }
-      for (int j=0; j<len;j++)
-      {
+    }
+    for (int j=0; j<len;j++) {
         ia[i*len+j+1]=m_neighborhood.size()+1;
         ja[i*len+j+1]=j+1;
         ar[i*len+j+1]=A.at(j);
         nConstraintMatrixElements++;
-      }
-      glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
-      //let us load the constraint matrix below
-      glp_load_matrix(myLpProblem,nConstraintMatrixElements, ia, ja, ar);
-      glp_simplex(myLpProblem, NULL);
-      double objective= glp_get_obj_val(myLpProblem);
-      if (objective>0.0) {
+    }
+    glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
+    //let us load the constraint matrix below
+    glp_load_matrix(myLpProblem,nConstraintMatrixElements, ia, ja, ar);
+    glp_simplex(myLpProblem, NULL);
+    double objective= glp_get_obj_val(myLpProblem);
+    if (objective>0.0) {
         std::vector<double> probabilities(len);
         for(int i=0; i<len;i++)
         {
@@ -922,9 +914,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
             {
               nc->operator=(g);
               first=false;
-            }
-            else
-            {
+            } else {
               nc->Sum (g, m_nodeGaloisField);
             }
             //We have to update neighborhood (WL is to be updated Only in Forward)
@@ -951,6 +941,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
         }
         glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
         return nc;
+<<<<<<< Updated upstream
       } else { //Blocking situation
         NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
       }
@@ -958,6 +949,14 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
   }
       return NULL;
 }//Encode
+=======
+    } else { //Blocking situation
+      NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
+    }
+  }//if(index>0)
+  return NULL;
+}
+>>>>>>> Stashed changes
 
 void MyNCApp::Reduce (NetworkCodedDatagram& g) {
   MapType::iterator it;
@@ -1086,7 +1085,6 @@ int MyNCApp::GausElim (int M, int N, Ptr<Packet> packetIn)
           if (!swp) {
                   // We have a full zero line = an equation is linearly dependent !
                   // we have to remove it !
-                  nDuplicateRec++;
                   // we search for a line to exchange with it. Begin with the last line
                   // and reduce matrix size
                   if (k==(M-1))
@@ -1277,7 +1275,6 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           MyHeader removeHeader;
           packetIn->RemoveHeader(removeHeader);
           nReceivedBytes += packetIn->GetSize ();
-          NS_LOG_UNCOND("packetIn->GetSize () = "<<packetIn->GetSize ()<<" nReceivedBytes = "<<nReceivedBytes<<"  nReceivedPacket = "<<nReceivedPackets<<" m_myNodeId = "<<m_myNodeId);
           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
           //should change and merge with above line...
           NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
@@ -1324,10 +1321,15 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
   NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<"	nodeId = "<<m_myNodeId<<" m_rcvCounter "<<m_rcvCounter);
   Reduce(*g);
   if(g->m_coefsList.size() == 0) {
+    nDuplicateRec++;
     NS_LOG_UNCOND("t = " << Simulator::Now().GetSeconds() << " NODE ID: "<< m_myNodeId<<" ACT: Useless packet!!!");
     return;
   }
-  m_changed=true;
+  if (!m_changed) {
+    m_changed=true;
+    Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+   }
+    
   if (CheckCapacity(*g)) {
     m_decodingBuf.push_back(g);
     UpdateVarList(*g);
@@ -1377,7 +1379,7 @@ MyNCApp::GeneratePacket ()
         }
 		Time now = Simulator::Now ();
 		if (m_buffer.size ()!=BUFFER_SIZE) {
-			NS_LOG_UNCOND ("t = "<<now.GetSeconds ()<<" for source "<<m_myNodeId<<" to destination "<<destId);
+			NS_LOG_UNCOND ("t = "<<now.GetSeconds ()<<" for source "<<m_myNodeId<<" to destination "<<(int)destId);
 			Time now = Simulator::Now();
 			CoefElt coef;
 			Ptr<NetworkCodedDatagram> nc;
@@ -1455,20 +1457,20 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 
 void MyNCApp::RemoveOldest ()
 {
-  std::vector<Ptr<DecodedPacketStorage> >::iterator pointToOldest, it;
-  pointToOldest = m_decodedBuf.begin();
-  int i=0, max=0;
-  for (it= m_decodedBuf.begin()+1; it!=m_decodedBuf.end(); it++){
-      if ((*it)->attribute.GetGenTime() > (*pointToOldest)->attribute.GetGenTime()) {
-          pointToOldest=it;
+  std::vector<Ptr<DecodedPacketStorage> >::iterator it;
+  uint32_t oldestTime=m_decodedBuf.back()->attribute.GetGenTime();
+  int i=0, max=199;
+  for (it= m_decodedBuf.begin(); it!=m_decodedBuf.end(); it++){
+      if ((*it)->attribute.GetGenTime()< oldestTime) {
+          oldestTime=(*it)->attribute.GetGenTime();
           max=i;
       }
       i++;
-
   }
-     NS_LOG_UNCOND("Oldest Packet in : "<< max);
-  m_decodedList.erase(m_decodedList.find((*pointToOldest)->attribute.Key()));
-  m_decodedBuf.erase(pointToOldest);
+  NS_LOG_UNCOND("Oldest Packet in : "<< max);
+  std::string str=m_decodedBuf[max]->attribute.Key();
+  m_decodedBuf.erase(m_decodedBuf.begin()+max);
+  m_decodedList.erase(m_decodedList.find(str));
 }
 
 void MyNCApp::PacketInjector ()
@@ -1478,7 +1480,11 @@ void MyNCApp::PacketInjector ()
  	  oldestDiscardedNum++;
  	  NS_LOG_UNCOND ("DISCARDED BufferManagement at node"<<m_myNodeId);
   }
-  m_changed=true;
+  if (!m_changed) {
+    m_changed=true;
+    Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+  }  
+
 	Ptr<NetworkCodedDatagram> p;
 	p=m_buffer.back();
 	Ptr<DecodedPacketStorage> q = CreateObject<DecodedPacketStorage>();
@@ -1635,8 +1641,8 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 
 	for (uint8_t i = 0; i < s_nRelay ; i++) {
 		newApp=CreateObject<MyNCApp> ();
-		myNodes.Get(i)->AddApplication(newApp);
-		newApp->SetNode(myNodes.Get(i));
+		myNodes.Get(i+s_nSource)->AddApplication(newApp);
+		newApp->SetNode(myNodes.Get(i+s_nSource));
 		rlyApps.Add(newApp);
 		newApp->m_pktSize=s_packetSize;
 		newApp->nNode=s_nRelay+s_nSource;
