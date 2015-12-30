@@ -530,6 +530,10 @@ MyNCApp::Stop () {
       if (sinkSock) {
         sinkSock->Close();
       }
+      if (beaconSock){
+        beaconSock->Close();
+      }
+
   }
 
 
