@@ -948,8 +948,9 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
         NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
       }
     }//if(index>0)
-    return NULL;
   }
+      return NULL;
+}//Encode
 
 void MyNCApp::Reduce (NetworkCodedDatagram& g) {
   MapType::iterator it;
