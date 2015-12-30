@@ -176,10 +176,6 @@ MyHeader::Serialize (Buffer::Iterator start) const
       i.WriteU8 (m_linComb[k1].dstId);
       i.WriteU32 (m_linComb[k1].genTime);
   }
-  if (m_linCombSize>MaxNumberOfCoeff)  {
-       NS_LOG_UNCOND("something wrong");
-  }
-
 }
 
 uint32_t
@@ -227,10 +223,6 @@ MyHeader::Deserialize (Buffer::Iterator start)
       lc.genTime= i.ReadU32 ();
       m_linComb. push_back (lc);
     }
-    if (m_linCombSize>MaxNumberOfCoeff)  {
-       NS_LOG_UNCOND("something wrong");
-    }
-
 
 
 // we return the number of bytes effectively read.
@@ -381,6 +373,7 @@ MyNCApp::MyNCApp(): Application()
   m_amSource=false;
   m_idle=true;
   m_changed=false;
+  m_degraded=false;
   m_port=5000;
   m_pktSize=1000;
   MCLU=10;
@@ -738,229 +731,225 @@ void MyNCApp::Forward ()
 
 Ptr<NetworkCodedDatagram> MyNCApp::Encode ()
 {
-	int L,l;
-	int coef;//choice, order;
-	NetworkCodedDatagram g;
-	Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
-	L = m_decodedBuf.size();
-	l = m_decodedBuf.size() + m_varList.size();
-	int len = m_decodingBuf.size() + m_decodedBuf.size();
-	std::list<Neighbor>::iterator listIterator;
-	// For encoding we should have received packets
-	if (l==0)
-	{
-		return NULL;
-	}
-	if (len ==0)
-	{
-		NS_LOG_UNCOND ("ERROR : LEN ==0 while L!=0");
-	}
+  int L,l,len;
+  int coef;//choice, order;
+  NetworkCodedDatagram g;
+  Ptr<NetworkCodedDatagram> nc= CreateObject<NetworkCodedDatagram>();
+  L = m_decodedBuf.size();
+  l = m_decodedBuf.size() + m_varList.size();
+  if (m_degraded) {
+    len = m_decodedBuf.size();
+  } else {
+    len = m_decodedBuf.size()+m_decodingBuf.size();
+  }
 
-	int numVar=0;
-	int index=0;
+  std::list<Neighbor>::iterator listIterator;
+  // For encoding we should have received packets
+  if (l==0)
+  {
+    return NULL;
+  }
+  if (len ==0)
+  {
+    NS_LOG_UNCOND ("ERROR : LEN ==0 while L!=0");
+  }
+
+  int numVar=0;
+  int index=0;
   double val;
-	std::vector<double> var,F, A, B;
-	m_lpMatrix.A.clear();
-	m_lpMatrix.SetDimensions((int) m_neighborhood.size(), l);
-	B.clear();
-	B.resize(m_neighborhood.size());
-	F.resize(len);
+  std::vector<double> var,F, A, B;
+  m_lpMatrix.A.clear();
+  m_lpMatrix.SetDimensions((int) m_neighborhood.size(), l);
+  B.clear();
+  B.resize(m_neighborhood.size());
+  F.resize(len);
   A.resize(len);
   for (int i=0;i<len;A.at(i++)=0);
-	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
-	for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
+  for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
     B.at(index)=listIterator->neighborRemainingCapacity;
-		//let's first iterate over the decoded packets
+    //let's first iterate over the decoded packets
     int i=0;
-		for (itr=m_decodedList.begin();itr!=m_decodedList.end();itr++) {
-			F.at(i)=0;
-			std::string tmpStr = itr->first;
-			if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
-				if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
-					F.at(i)=F.at(i) + variableWeight;
-						//X.at(i)=1;
-						//add the constraints here
-						//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
-						//X.at(i)=0;
+    for (itr=m_decodedList.begin();itr!=m_decodedList.end();itr++) {
+      F.at(i)=0;
+      std::string tmpStr = itr->first;
+      if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
+        if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
+          F.at(i)=F.at(i) + variableWeight;
+          //X.at(i)=1;
+          //add the constraints here
+          //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
+          //X.at(i)=0;
           A.at(i)=1;
-				} else {
-					F.at(i)=F.at(i) + unreceivedWeight;
-						//X.at(i)=1;
-						//add the constraints here
-						//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
-						//X.at(i)=0;
-					m_lpMatrix.SetValue(index,i,1);
+        } else {
+          F.at(i)=F.at(i) + unreceivedWeight;
+          //X.at(i)=1;
+          //add the constraints here
+          //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
+          //X.at(i)=0;
+          m_lpMatrix.SetValue(index,i,1);
           A.at(i)=1;
-				}
+        }
         if (((itr->second))->attribute.m_destId ==listIterator->neighborId){
           F.at(i)=F.at(i) + neighborWeight;
         }
-			}
-      i++;
-		}//for loop over decoded packets
-			//now let's iterate over the decodingList
-		for (uint16_t i=0; i< len-L; i++) {
-      m_lpMatrix.SetValue(index,i+L,0);
-		    //line below should change...
-			numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
-			MapType::iterator it;
-			std::map<std::string, NCAttribute >::iterator itr;
-			for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++) {
-				itr = m_varList.find (it->first);
-				//itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
-				if (itr!=m_varList.end()) { //If you find the variable in the variable list
-					std::string tmpStr = itr->first;
-					if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
-						if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
-							F.at(L+i)=F.at(L+i) + (double)variableWeight/numVar;
-							//X.at(I+L)=1;
-							//add the constraints here
-							//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
-							//X.at(I+L)=0;
-              A.at(L+i)=numVar;
-						} else {
-							//X.at(I+L)=1;
-							//add the constraints here
-							//constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
-							//X.at(I+L)=0;
-							F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
-              val=m_lpMatrix.GetValue(index,i+L)+1;
-							m_lpMatrix.SetValue(index,i+L,val);
-              A.at(L+i)=numVar;
-						}
-            if (((itr->second)).m_destId==listIterator->neighborId) {
-              F.at(i)=F.at(i) + (double)neighborWeight/numVar;
-            }
-					}
-				} else {
-					NS_LOG_UNCOND("Wrong not found in varlist!!!!");
-				}
-			}
-		}// for loop over decodingList
-			//okay! now add another constraint
-			//constraints.add(new LinearConstraint(AA[index],Relationship.LEQ,B[index]));
-		index++;
-	}//end of iteration over the neighborhood
-
-	if(index>0)
-	{
-		//here we define our problem
-		glp_prob *myLpProblem;
-		myLpProblem = glp_create_prob();
-		glp_set_prob_name(myLpProblem, "myLpProblem");
-		glp_set_obj_dir (myLpProblem, GLP_MAX);//maximize
-		glp_add_rows (myLpProblem, m_neighborhood.size()+1);
-		glp_add_cols (myLpProblem, len);
-		int nConstraintMatrixElements =0;
-			//let us define the bounds of the cols here (0<=p_i<=1)
-		for (int i=0; i<len;i++)
-		{
-			glp_set_col_bnds (myLpProblem, i+1, GLP_DB, 0.0, 1.0);
-			glp_set_obj_coef(myLpProblem, i+1, F.at(i));
-		}
-			//let us now set the rows bounds (0<= summation of probabilities <= capacity of corresponding neighbor)
-			//before to loading the constraint matrix we should prepare the required args (ia[], ja[], and ar[])
-		int ia[1+1000], ja[1+1000];
-		double ar[1+1000];
-		int M= (int)m_neighborhood.size();
-		int i=0;
-		for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++)
-		{
-			for (int j=0; j<len;j++)
-			{
-				ia[i*len+j+1]=i+1;
-				ja[i*len+j+1]=j+1;
-				ar[i*len+j+1]=m_lpMatrix.GetValue(i,j);
-				nConstraintMatrixElements++;
-			}
-			if (listIterator->neighborRemainingCapacity>0) {
-				glp_set_row_bnds(myLpProblem, i+1, GLP_DB, 0.0, (double)(listIterator->neighborRemainingCapacity)/(listIterator->neighborhoodSize));
-			} else {
-				glp_set_row_bnds(myLpProblem, i+1, GLP_FX, 0.0, 0.0);
-			}
-			i++;
-		}
-		for (int j=0; j<len;j++)
-		{
-			ia[i*len+j+1]=m_neighborhood.size()+1;
-			ja[i*len+j+1]=j+1;
-			ar[i*len+j+1]=A.at(j);
-			nConstraintMatrixElements++;
-		}
-		glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
-			//let us load the constraint matrix below
-		glp_load_matrix(myLpProblem,nConstraintMatrixElements, ia, ja, ar);
-		glp_simplex(myLpProblem, NULL);
-		double objective= glp_get_obj_val(myLpProblem);
-		if (objective>0.0) {
-			std::vector<double> probabilities(len);
-			for(int i=0; i<len;i++)
-			{
-				probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
-			}
-			bool first=true;
-			int inserted;
-			Time now = Simulator::Now ();
-
-      //we build F on map order so the order should be map order there !
-      std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
-      int i=0, varNum=0;
-			for (itr2=m_decodedList.begin();itr2!=m_decodedList.end();itr2++) {
-				if (uniVar->GetValue(0.0,1.0) < probabilities.at(i)){
-          varNum++;
-					coef = uniVar->GetInteger (1,255);
-					//NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
-					g=*(itr2->second->ncDatagram);
-					g.Product(coef, m_nodeGaloisField );
-					inserted++;
-					if (first)
-					{
-						nc->operator=(g);
-						first=false;
-					}
-					else
-					{
-						nc->Sum (g, m_nodeGaloisField);
-					}
-					//We have to update neighborhood (WL is to be updated Only in Forward)
-					//UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
-				}
-        i++;
-			}//for over decodedBuf
-
-            //MapType::iterator itr2;
-			for (uint16_t i=0;i<m_decodingBuf.size();i++)
-			{
-				if (uniVar->GetValue (0.0,1.0) < probabilities.at(i))
-				{
-          numVar=numVar+m_decodingBuf[i]->m_coefsList.size();
-					coef = uniVar->GetInteger (1,255);
-					g=(*m_decodingBuf.at(i));
-					g.Product(coef, m_nodeGaloisField );
-					inserted=inserted+g.m_coefsList.size();
-					if (first)
-					{
-						nc->operator=(g);
-						first=false;
-					}
-					else
-					{
-						nc->Sum (g, m_nodeGaloisField);
-					}
-				}
-			}//for over decodingBuf
-      if (nc->m_coefsList.size() > MaxNumberOfCoeff){
-        NS_LOG_UNCOND("Problem!!!!!!");
       }
+      i++;
+    }//for loop over decoded packets
+    //now let's iterate over the decodingList
+    if (!m_degraded) {
+      for (uint16_t i=0; i< len-L; i++) {
+        m_lpMatrix.SetValue(index,i+L,0);
+        //line below should change...
+        numVar= (int) m_decodingBuf.at(i)->m_coefsList.size();
+        MapType::iterator it;
+        std::map<std::string, NCAttribute >::iterator itr;
+        for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++) {
+          itr = m_varList.find (it->first);
+          //itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
+          if (!(itr==m_varList.end())) {
+            //If you find the variable in the variable list
+            std::string tmpStr = itr->first;
+            if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
+              if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
+                F.at(L+i)=F.at(L+i) + (double)variableWeight/numVar;
+                //X.at(I+L)=1;
+                //add the constraints here
+                //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
+                //X.at(I+L)=0;
+                A.at(L+i)=numVar;
+              } else {
+                //X.at(I+L)=1;
+                //add the constraints here
+                //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
+                //X.at(I+L)=0;
+                F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
+                val=m_lpMatrix.GetValue(index,i+L)+1;
+                m_lpMatrix.SetValue(index,i+L,val);
+                A.at(L+i)=numVar;
+              }
+              if (((itr->second)).m_destId==listIterator->neighborId) {
+                F.at(i)=F.at(i) + (double)neighborWeight/numVar;
+              }
+            }
+          } else {
+            NS_LOG_UNCOND("Wrong not found in varlist!!!!");
+          }
+        }
+      }// for loop over decodingList}
+      index++;
+    }//end of iteration over the neighborhood
 
-			glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
-			return nc;
-		} else { //Blocking situation
-			NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
-		}
-	}//if(index>0)
-	return NULL;
-}
+    if(index>0)
+    {
+      //here we define our problem
+      glp_prob *myLpProblem;
+      myLpProblem = glp_create_prob();
+      glp_set_prob_name(myLpProblem, "myLpProblem");
+      glp_set_obj_dir (myLpProblem, GLP_MAX);//maximize
+      glp_add_rows (myLpProblem, m_neighborhood.size()+1);
+      glp_add_cols (myLpProblem, len);
+      int nConstraintMatrixElements =0;
+      //let us define the bounds of the cols here (0<=p_i<=1)
+      for (int i=0; i<len;i++)
+      {
+        glp_set_col_bnds (myLpProblem, i+1, GLP_DB, 0.0, 1.0);
+        glp_set_obj_coef(myLpProblem, i+1, F.at(i));
+      }
+      //let us now set the rows bounds (0<= summation of probabilities <= capacity of corresponding neighbor)
+      //before to loading the constraint matrix we should prepare the required args (ia[], ja[], and ar[])
+      int ia[1+1000], ja[1+1000];
+      double ar[1+1000];
+      int M= (int)m_neighborhood.size();
+      int i=0;
+      for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++)
+      {
+        for (int j=0; j<len;j++)
+        {
+          ia[i*len+j+1]=i+1;
+          ja[i*len+j+1]=j+1;
+          ar[i*len+j+1]=m_lpMatrix.GetValue(i,j);
+          nConstraintMatrixElements++;
+        }
+        if (listIterator->neighborRemainingCapacity>0) {
+          glp_set_row_bnds(myLpProblem, i+1, GLP_DB, 0.0, (double)(listIterator->neighborRemainingCapacity)/(listIterator->neighborhoodSize));
+        } else {
+          glp_set_row_bnds(myLpProblem, i+1, GLP_FX, 0.0, 0.0);
+        }
+        i++;
+      }
+      for (int j=0; j<len;j++)
+      {
+        ia[i*len+j+1]=m_neighborhood.size()+1;
+        ja[i*len+j+1]=j+1;
+        ar[i*len+j+1]=A.at(j);
+        nConstraintMatrixElements++;
+      }
+      glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
+      //let us load the constraint matrix below
+      glp_load_matrix(myLpProblem,nConstraintMatrixElements, ia, ja, ar);
+      glp_simplex(myLpProblem, NULL);
+      double objective= glp_get_obj_val(myLpProblem);
+      if (objective>0.0) {
+        std::vector<double> probabilities(len);
+        for(int i=0; i<len;i++)
+        {
+          probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
+        }
+        bool first=true;
+        int inserted;
+        Time now = Simulator::Now ();
+
+        //we build F on map order so the order should be map order there !
+        std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
+        int i=0, varNum=0;
+        for (itr2=m_decodedList.begin();itr2!=m_decodedList.end();itr2++) {
+          if (uniVar->GetValue(0.0,1.0) < probabilities.at(i)){
+            varNum++;
+            coef = uniVar->GetInteger (1,255);
+            //NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
+            g=*(itr2->second->ncDatagram);
+            g.Product(coef, m_nodeGaloisField );
+            inserted++;
+            if (first)
+            {
+              nc->operator=(g);
+              first=false;
+            }
+            else
+            {
+              nc->Sum (g, m_nodeGaloisField);
+            }
+            //We have to update neighborhood (WL is to be updated Only in Forward)
+            //UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
+          }
+          i++;
+        }//for over decodedBuf
+        if (!m_degraded){
+          for (uint16_t i=0;i<m_decodingBuf.size();i++) {
+            if (uniVar->GetValue (0.0,1.0) < probabilities.at(i)){
+              numVar=numVar+m_decodingBuf[i]->m_coefsList.size();
+              coef = uniVar->GetInteger (1,255);
+              g=(*m_decodingBuf.at(i));
+              g.Product(coef, m_nodeGaloisField );
+              inserted=inserted+g.m_coefsList.size();
+              if (first) {
+                nc->operator=(g);
+                first=false;
+              } else {
+                nc->Sum (g, m_nodeGaloisField);
+              }
+            }
+          }//for over decodingBuf
+        }
+        glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
+        return nc;
+      } else { //Blocking situation
+        NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
+      }
+    }//if(index>0)
+    return NULL;
+  }
 
 void MyNCApp::Reduce (NetworkCodedDatagram& g) {
   MapType::iterator it;
@@ -1631,6 +1620,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		newApp->nNode=s_nRelay+s_nSource;
 		newApp->m_packetInterval=s_packetInterval;
 		newApp->m_beaconInterval=s_beaconInterval;
+    newApp->m_degraded=true;
 		newApp->MakeSource();
 		newApp->Start();
 	}
@@ -1644,6 +1634,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		newApp->nNode=s_nRelay+s_nSource;
 		newApp->m_packetInterval=s_packetInterval;
 		newApp->m_beaconInterval=s_beaconInterval;
+    newApp->m_degraded=true;
 		newApp->Start();
 	}
 

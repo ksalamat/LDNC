@@ -138,6 +138,7 @@ protected:
   std::list<Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source
   bool m_idle; //indicate is the app is sending packet or just beacon
+  bool m_degraded;//indicate if we are a degraded node (only using decoded packet in forwarding)
   uint32_t m_port;
   int MCLU;
   double beaconInterval;
@@ -191,8 +192,6 @@ public:
   uint32_t m_nErasedElements;
   WaitingList m_waitingList;
 };
-
-
 
 class Experiment
 {
