@@ -356,10 +356,10 @@ DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
   MapType::iterator it=nc->m_coefsList.begin();
   attribute.m_nodeId=it->second.m_nodeId;
   attribute.m_index=it->second.m_index;
-  attribute.m_destId=it->second.m_destId;
-  attribute.m_genTime=it->second.GetGenTime();
-  attribute.m_receptionNum=0;
-  attribute.m_sendingNum=0;
+	attribute.m_destId=it->second.m_destId;
+	attribute.m_genTime=it->second.GetGenTime();
+	attribute.m_receptionNum=0;
+	attribute.m_sendingNum=0;
   ncDatagram=nc;
 }
 
@@ -426,16 +426,15 @@ void
 MyNCApp::SetupSockets () {
   TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
   sinkSock = Socket::CreateSocket (GetNode(), tid);
-   sourceSock = Socket::CreateSocket (GetNode(), tid);
-    m_myNCAppIp = GetNode()->GetObject<Ipv4> ()->GetAddress (1, 0).GetLocal ();
+	sourceSock = Socket::CreateSocket (GetNode(), tid);
+    beaconSock=sourceSock;
+  m_myNCAppIp = GetNode()->GetObject<Ipv4> ()->GetAddress (1, 0).GetLocal ();
 	InetSocketAddress local = InetSocketAddress (m_myNCAppIp, m_port);
   sinkSock->Bind (local);
   sinkSock->SetRecvCallback (MakeCallback (&MyNCApp::Receive, this));
 	InetSocketAddress remote = InetSocketAddress (Ipv4Address ("10.1.1.255"), m_port);
 	sourceSock->SetAllowBroadcast (true);
 	sourceSock->Connect (remote);
-	beaconSock->SetAllowBroadcast (true);
-	beaconSock->Connect (remote);
 }
 
 void
@@ -494,7 +493,7 @@ MyNCApp::GenerateBeacon ()
 	beaconPacket-> AddHeader (beaconHeader);
 //	delete tempFilter1;
 //	delete tempFilter2;
-	beaconSock-> Send (beaconPacket);
+	sourceSock-> Send (beaconPacket);
 	nGeneratedBeacons++;
 	Simulator::Schedule (Seconds (m_beaconInterval), &MyNCApp::GenerateBeacon, this);
 }
@@ -531,10 +530,6 @@ MyNCApp::Stop () {
       if (sinkSock) {
         sinkSock->Close();
       }
-      if (beaconSock){
-        beaconSock->Close();
-      }
-
   }
 
 
@@ -941,22 +936,12 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
         }
         glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
         return nc;
-<<<<<<< Updated upstream
-      } else { //Blocking situation
-        NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
-      }
-    }//if(index>0)
-  }
-      return NULL;
-}//Encode
-=======
     } else { //Blocking situation
       NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
     }
   }//if(index>0)
   return NULL;
 }
->>>>>>> Stashed changes
 
 void MyNCApp::Reduce (NetworkCodedDatagram& g) {
   MapType::iterator it;
