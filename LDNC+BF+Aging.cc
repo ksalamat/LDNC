@@ -522,8 +522,8 @@ MyNCApp::GenerateBeacon ()
 	    //No No ! we insert string in BFs !!!
 		tempFilter2->insert(itr2->first);
 	}
-	for(int i=0; i<m_deliveredList.size();i++){
-        eBf->insert (m_deliveredList.at(i));
+	for(std::size_t i=0; i<m_deliveredList.size();i++){
+        eBF->insert (m_deliveredList.at(i));
 	}
 	beaconHeader.PutDecodingBloomFilter (tempFilter1);
 	beaconHeader.PutDecodedBloomFilter (tempFilter2);
@@ -723,7 +723,7 @@ void MyNCApp::Forward ()
       {
         tempFilter2->insert(itr2->first);
       }
-      for (int i=0;i<m_deliveredList.size();i++){
+      for (std::size_t i=0;i<m_deliveredList.size();i++){
         eBF->insert (m_deliveredList.at(i));
       }
       lcHeader.PutDecodingBloomFilter (tempFilter1);
@@ -1505,17 +1505,15 @@ void MyNCApp:: UpdateDeliveredList (std::string deliveredStr)
 
 void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
 {
-  std::vector<Ptr<DecodedPacketStorage> > m_decodedBuf;
-  std::map<std::string, Ptr<DecodedPacketStorage> > m_decodedList;
   /*next step
   std::vector<Ptr<NetworkCodedDatagram> > m_decodingBuf;
   std::map<std::string, NCAttribute> m_varList;
   std::vector<Ptr<NCAttribute> > m_variableList;*/
 
-  std::map<std::string, Ptr<DecodedPacketStorage> >:iterator it1;
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator it1;
   //std::vector<std::string> toEraseKeys;
   //toEraseKeys.clear();
-  for (it1=m_decodedList.begin(), it1!= m_decodedList.end(); it1++ ){
+  for (it1=m_decodedList.begin(); it1!= m_decodedList.end(); it1++ ){
      if (eBf->contains (it1->first))
      {
        //toEraseKeys.push_back(it1->first);
@@ -1527,11 +1525,16 @@ void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
   //std::vector<int> toEraseIndexes;
   //toEraseIndexes.clear();
   for (it2=m_decodedBuf.begin(); it2<m_decodedBuf.end();it2++){
-       if (eBf->contains (it2->ncDatagram->m_coefsList->first)){
+       if (eBf->contains (it2->attribute.Key())){
             //toEraseIndexes.push_back(it->ncDatagram->m_coefsList->first);
-            it=m_decodedBuf.erase(it2);
+            it2=m_decodedBuf.erase(it2);
        }
   }
+ /* for(std::size_t i=0; i<m_decodedBuf.size();i++){
+     if(eBf->contains(m_decodedBuf.at(i)->attribute.key())){
+       m_decodedBuf.erase
+     }
+  }*/
 
 
 }
