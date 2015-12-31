@@ -661,8 +661,6 @@ void MyNCApp::UpdateNeighorhoodEst(std::string pktId){
 	}
 }
 
-
-
 void MyNCApp::Receive (Ptr<Socket> socket)
 {
 	Time now = Simulator::Now();
@@ -673,6 +671,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 //	packetIn-> PeekHeader(header);
 	packetIn-> RemoveHeader(header);
 	UpdateNeighborList(header, senderIp);
+	RemoveDeliveredPackets(header.GeteBF(PEC, DFPP));
 	if (header.GetPacketType () == 0) {
 		nReceivedBeacons++;
 		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<(int)header.GetNodeId());
@@ -1487,31 +1486,54 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 	}
 }
 
-void MyNCApp:: UpdateDeliveredList (std::string deliverdStr)
+void MyNCApp:: UpdateDeliveredList (std::string deliveredStr)
 {
-   std::vector<string>::iterator tempItr = find(m_deliveredList.begin(), m_deliveredList.end(), deliverdStr);
+   std::vector<string>::iterator tempItr = find(m_deliveredList.begin(), m_deliveredList.end(), deliveredStr);
           if (tempItr == m_deliveredList.end())
             {
               if (m_deliveredList.size() == MAX_DELIVERED_LIST_SIZE)
                 {
                   m_deliveredList.erase(m_deliveredList.begin());
-                  m_deliveredList.push_back (deliverdStr);
+                  m_deliveredList.push_back (deliveredStr);
                 }
               else
                 {
-                  m_deliveredList.push_back (deliverdStr);
+                  m_deliveredList.push_back (deliveredStr);
                 }
             }
 }
 
 void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
 {
-std::vector<Ptr<DecodedPacketStorage> > m_decodedBuf;
+  std::vector<Ptr<DecodedPacketStorage> > m_decodedBuf;
   std::map<std::string, Ptr<DecodedPacketStorage> > m_decodedList;
-  // List containing packets to decode
+  /*next step
   std::vector<Ptr<NetworkCodedDatagram> > m_decodingBuf;
   std::map<std::string, NCAttribute> m_varList;
-  std::vector<Ptr<NCAttribute> > m_variableList;
+  std::vector<Ptr<NCAttribute> > m_variableList;*/
+
+  std::map<std::string, Ptr<DecodedPacketStorage> >:iterator it1;
+  //std::vector<std::string> toEraseKeys;
+  //toEraseKeys.clear();
+  for (it1=m_decodedList.begin(), it1!= m_decodedList.end(); it1++ ){
+     if (eBf->contains (it1->first))
+     {
+       //toEraseKeys.push_back(it1->first);
+       UpdateDeliveredList(it1->first);
+       m_decodedList.erase(m_decodedList.find(it1->first));
+     }
+  }
+  std::vector<Ptr<DecodedPacketStorage> >::iterator it2;
+  //std::vector<int> toEraseIndexes;
+  //toEraseIndexes.clear();
+  for (it2=m_decodedBuf.begin(); it2<m_decodedBuf.end();it2++){
+       if (eBf->contains (it2->ncDatagram->m_coefsList->first)){
+            //toEraseIndexes.push_back(it->ncDatagram->m_coefsList->first);
+            it=m_decodedBuf.erase(it2);
+       }
+  }
+
+
 }
 
 void MyNCApp::RemoveOldest ()

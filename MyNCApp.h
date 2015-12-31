@@ -136,7 +136,7 @@ public:
   void CheckWaitingList (std::list<Neighbor>::iterator);
   void MakeSource();
   void UpdateWaitingList(std::string);
-  void UpdateDeliveredList ();
+  void UpdateDeliveredList (std::string);
   void RemoveDeliveredPackets (Ptr<MyBloom_filter>);
   void GeneratePacket();
   void PacketInjector();
