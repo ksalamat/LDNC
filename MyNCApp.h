@@ -73,12 +73,15 @@ public:
   std::vector<uint8_t> m_pktIdLength;
   void PutDecodedBloomFilter (Ptr<MyBloom_filter> node);
   void PutDecodingBloomFilter (Ptr<MyBloom_filter> node);
+  void PuteBF(Ptr<MyBloom_filter> node);
   Ptr<MyBloom_filter> GetDecodedBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   Ptr<MyBloom_filter> GetDecodingBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
+  Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   void SetRemainingCapacity (uint8_t remainingCapacity);
   uint8_t GetRemainingCapacity (void) const;
   unsigned char* m_decodedBitTable;
   unsigned char* m_decodingBitTable;
+  unsigned char* m_eBfBitTable;
 private:
   uint8_t m_destId;
   uint8_t m_packetType;
@@ -88,8 +91,10 @@ private:
  // uint32_t m_time;
   std::size_t m_decodedTableSize;
   std::size_t m_decodingTableSize;
+  std::size_t m_eBfTableSize;
   std::size_t m_decodedInsertedElementCount;
   std::size_t m_decodingInsertedElementCount;
+  std::size_t m_eBfInsertedElementCount;
   uint8_t m_remainingCapacity;
   uint8_t m_decodingBufSize;  //conveys neighbor's decodingBufSize
 };
@@ -131,6 +136,8 @@ public:
   void CheckWaitingList (std::list<Neighbor>::iterator);
   void MakeSource();
   void UpdateWaitingList(std::string);
+  void UpdateDeliveredList (std::string);
+  void RemoveDeliveredPackets (Ptr<MyBloom_filter>);
   void GeneratePacket();
   void PacketInjector();
   void RemoveOldest ();
@@ -144,7 +151,7 @@ public:
   Ptr<Socket> sinkSock;
   Ptr<Socket> sourceSock;
   Ptr<Socket> beaconSock;
-  
+
   galois::GaloisField *m_nodeGaloisField;
   std::size_t predictedElementCount;
   double falsePositiveProbability;
@@ -166,6 +173,8 @@ public:
   std::map<std::string, NCAttribute> m_varList;
   std::vector<Ptr<NCAttribute> > m_variableList; //List only used during the decoding for swapping columns
   //std::map<std::string, NCAttribute> m_decodedList;
+  std::vector<string> m_deliveredList;
+
 
   int m_rank;
   Matrix m_matrix;

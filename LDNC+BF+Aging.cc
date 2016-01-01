@@ -57,6 +57,7 @@ static const std::size_t MAX_VARLIST_SIZE = 50;
 static const std::size_t MaxNumberOfCoeff=10;
 static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
 static const std::size_t DECODED_BUFF_SIZE = 200;
+static const std::size_t MAX_DELIVERED_LIST_SIZE = DECODED_BUFF_SIZE;
 static const float NEIGHBOR_TIMER = 1.5;
 /*static const double BEACON_PERIOD = 1;
 static const double FORWARD_PERIOD = 0.08;
@@ -104,9 +105,9 @@ MyHeader::MyHeader ()
   m_neighborhoodSize = 0;
   m_decodingBufSize = 0;
   m_linComb. clear ();
-  m_decodedTableSize=m_decodingTableSize = 0;
-  m_decodedInsertedElementCount=m_decodingInsertedElementCount = 0;
-  m_decodedBitTable=m_decodingBitTable = 0;
+  m_decodedTableSize=m_decodingTableSize= m_eBfTableSize = 0;
+  m_decodedInsertedElementCount=m_decodingInsertedElementCount= m_eBfInsertedElementCount = 0;
+  m_decodedBitTable=m_decodingBitTable = m_eBfBitTable= 0;
   m_remainingCapacity = 0;
 }
 
@@ -143,7 +144,7 @@ MyHeader::Print (std::ostream &os) const
 uint32_t
 MyHeader::GetSerializedSize (void) const
 {
-  return 15 + 8*m_linCombSize + (m_decodedTableSize + m_decodingTableSize) / BITS_PER_CHAR;
+  return 15 + 8*m_linCombSize + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
 }
 
 void
@@ -163,11 +164,16 @@ MyHeader::Serialize (Buffer::Iterator start) const
   i.WriteU16 (m_decodedInsertedElementCount);
   i.WriteU16 (m_decodingTableSize);
   i.WriteU16 (m_decodingInsertedElementCount);
+  i.WriteU16 (m_eBfTableSize);
+  i.WriteU16 (m_eBfInsertedElementCount);
   for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++) {
       i.WriteU8 (m_decodedBitTable[j]);
   }
   for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++) {
       i.WriteU8 (m_decodingBitTable[j]);
+  }
+  for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_eBfBitTable[j]);
   }
   for (uint8_t k1=0; k1!=m_linCombSize; k1++) {
       i.WriteU8 (m_linComb[k1].nodeId);
@@ -194,6 +200,8 @@ MyHeader::Deserialize (Buffer::Iterator start)
   m_decodedInsertedElementCount = i.ReadU16 ();
   m_decodingTableSize = i.ReadU16 ();
   m_decodingInsertedElementCount = i.ReadU16 ();
+  m_eBfTableSize = i.ReadU16 ();
+  m_eBfInsertedElementCount = i.ReadU16 ();
   if (m_decodedBitTable)
     {
       delete[] m_decodedBitTable;
@@ -211,6 +219,15 @@ MyHeader::Deserialize (Buffer::Iterator start)
   for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++)
     {
       m_decodingBitTable[j] = i.ReadU8 ();
+    }
+  if (m_eBfBitTable)
+    {
+      delete[] m_eBfBitTable;
+    }
+  m_eBfBitTable = new unsigned char[m_eBfTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++)
+    {
+      m_eBfBitTable[j] = i.ReadU8 ();
     }
   m_linComb.clear ();
   LinearCombination lc;
@@ -331,6 +348,15 @@ MyHeader::PutDecodingBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
     m_decodingInsertedElementCount = nodeFilterPointer->element_count();
 }
 
+void
+MyHeader::PuteBF (Ptr<MyBloom_filter> nodeFilterPointer)
+{
+    m_eBfTableSize = nodeFilterPointer->size();
+    m_eBfBitTable = new unsigned char[m_eBfTableSize / BITS_PER_CHAR];
+    std::copy (nodeFilterPointer->table(), nodeFilterPointer->table() + (m_eBfTableSize / BITS_PER_CHAR), m_eBfBitTable);
+    m_eBfInsertedElementCount = nodeFilterPointer->element_count();
+}
+
 Ptr<MyBloom_filter> MyHeader::GetDecodedBloomFilter (const std::size_t predictedElementCount, const double falsePositiveProbability) const
 {
     Ptr<MyBloom_filter> filterPointer;
@@ -351,6 +377,15 @@ Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predict
     return filterPointer;
 }
 
+Ptr<MyBloom_filter>  MyHeader::GeteBF (const std::size_t predictedElementCount, const double falsePositiveProbability) const
+{
+    Ptr<MyBloom_filter> filterPointer;
+    filterPointer = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability, m_nodeId);
+    filterPointer->bit_table_ = new unsigned char[m_eBfTableSize / BITS_PER_CHAR];
+    std::copy(m_eBfBitTable, m_eBfBitTable + (m_eBfTableSize / BITS_PER_CHAR), filterPointer->bit_table_);
+    filterPointer->inserted_element_count_ = m_eBfInsertedElementCount;
+    return filterPointer;
+}
 
 DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
   MapType::iterator it=nc->m_coefsList.begin();
@@ -394,9 +429,10 @@ MyNCApp::MyNCApp(): Application()
   }
 	m_buffer. clear ();
 	m_decodedBuf. clear ();
-  m_decodedList.clear ();
+    m_decodedList.clear ();
 	m_decodingBuf. clear ();
 	m_varList. clear ();
+	m_deliveredList.clear ();
 	m_packetInterval=0.08;
 	m_beaconInterval=1.0;
 	double mean = 1;
@@ -453,7 +489,7 @@ MyNCApp::GenerateBeacon ()
 	std::list<Neighbor>::iterator it;
 	Time now = Simulator::Now ();
 	// First check if there is inactive neighbors
-  if (beaconSock!=sourceSock) 
+  if (beaconSock!=sourceSock)
     NS_LOG_UNCOND("Something WEIRDDDDDDDD");
 	for (it=m_neighborhood.begin(); it!=m_neighborhood.end();) {
 		if (now.GetSeconds() - it->lastReceptionTime > NEIGHBOR_TIMER) {
@@ -461,7 +497,7 @@ MyNCApp::GenerateBeacon ()
 			NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" neighbor "<<(int)it->neighborId<<" has been deleted in "<<m_myNodeId<<"'s neighborhood !");
 		} else {
       ++it;
-    }  
+    }
 	}
   m_myNeighborhoodSize=m_neighborhood.size();
   if (m_neighborhood.empty()){//no more neighbors
@@ -476,6 +512,7 @@ MyNCApp::GenerateBeacon ()
   beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
+	Ptr<MyBloom_filter> eBF = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	std::map<std::string, NCAttribute >::iterator itr;
 	for (itr=m_varList.begin();itr!=m_varList.end();itr++)
 	{
@@ -488,8 +525,12 @@ MyNCApp::GenerateBeacon ()
 	    //No No ! we insert string in BFs !!!
 		tempFilter2->insert(itr2->first);
 	}
+	for(std::size_t i=0; i<m_deliveredList.size();i++){
+        eBF->insert (m_deliveredList.at(i));
+	}
 	beaconHeader.PutDecodingBloomFilter (tempFilter1);
 	beaconHeader.PutDecodedBloomFilter (tempFilter2);
+	beaconHeader.PuteBF(eBF);
 	beaconHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
 	beaconHeader.SetRemainingCapacity((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
 	beaconHeader.SetNeighborhoodSize((uint16_t) m_neighborhood.size());
@@ -616,9 +657,9 @@ void MyNCApp::UpdateNeighorhoodEst(std::string pktId,uint8_t type){
 	//we assume any forward packet is entering into all neighbors varList and therefore appears in neighborDecodingFilter
   for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
     if (!listIterator->neighborDecodedFilter->contains(pktId))  {
-      if (type==1){// the variable will be decoded at destination 
+      if (type==1){// the variable will be decoded at destination
         listIterator->neighborDecodedFilter->insert(pktId);
-      } else { 
+      } else {
 		    if (!listIterator->neighborDecodingFilter->contains(pktId)) {
           listIterator->neighborRemainingCapacity--;
           listIterator->neighborDecodingFilter->insert(pktId);
@@ -627,8 +668,6 @@ void MyNCApp::UpdateNeighorhoodEst(std::string pktId,uint8_t type){
     }
 	}
 }
-
-
 
 void MyNCApp::Receive (Ptr<Socket> socket)
 {
@@ -640,6 +679,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 //	packetIn-> PeekHeader(header);
 	packetIn-> RemoveHeader(header);
 	UpdateNeighborList(header, senderIp);
+	RemoveDeliveredPackets(header.GeteBF(PEC, DFPP));
 	if (header.GetPacketType () == 0) {
 		nReceivedBeacons++;
 		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<(int)header.GetNodeId());
@@ -681,6 +721,7 @@ void MyNCApp::Forward ()
       lcHeader.SetDestination(255);
       Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
+      Ptr<MyBloom_filter> eBF = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       std::map<std::string, NCAttribute >::iterator itr;
       for (itr=m_varList.begin();itr!=m_varList.end();itr++) {
         tempFilter1->insert(itr->first);
@@ -690,8 +731,12 @@ void MyNCApp::Forward ()
       {
         tempFilter2->insert(itr2->first);
       }
+      for (std::size_t i=0;i<m_deliveredList.size();i++){
+        eBF->insert (m_deliveredList.at(i));
+      }
       lcHeader.PutDecodingBloomFilter (tempFilter1);
       lcHeader.PutDecodedBloomFilter (tempFilter2);
+      lcHeader.PuteBF(eBF);
       lcHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
       lcHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
       lcHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
@@ -710,7 +755,7 @@ void MyNCApp::Forward ()
           if (tmpEncDatagram->m_coefsList.size()==1) {
 					 UpdateNeighorhoodEst(lc.Key(),1);
            } else {
-           UpdateNeighorhoodEst(lc.Key(),2); 
+           UpdateNeighorhoodEst(lc.Key(),2);
            }
 					if (it->second.GetNodeId()==m_myNodeId) {// we are the source of the packet so we have to update waitingList to do backpressure
 						UpdateWaitingList(lc.Key());
@@ -971,8 +1016,8 @@ void MyNCApp::Reduce (NetworkCodedDatagram& g) {
         g.Minus(*nc, m_nodeGaloisField);
         if (g.m_coefsList.size()==0)  {// as their will be a coef that will be remove we should take care
           break;
-        }  
-      } else 
+        }
+      } else
         it++;
     }
   }
@@ -1204,7 +1249,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
   bool solved=true;
   Ptr<NetworkCodedDatagram> g= CreateObject<NetworkCodedDatagram>();
   if (M < m_decodingBuf.size()){
-    m_decodingBuf.erase(m_decodingBuf.begin()+M, m_decodingBuf.end());      
+    m_decodingBuf.erase(m_decodingBuf.begin()+M, m_decodingBuf.end());
   }
   //Check if one variable have been determined
   Ptr<NCAttribute> ptr;
@@ -1280,6 +1325,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
           //should change and merge with above line...
           NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
+          UpdateDeliveredList(it->first);
         }
         Ptr<DecodedPacketStorage> dnc=CreateObject<DecodedPacketStorage>();
         dnc->attribute.SetNodeId(it->second.GetNodeId());
@@ -1335,7 +1381,6 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
     m_changed=true;
     Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
    }
-   NetworkCodedDatagram tmp=*g;
   if (CheckCapacity(*g)) {
     m_decodingBuf.push_back(g);
     UpdateVarList(*g);
@@ -1431,7 +1476,7 @@ void MyNCApp::CheckWaitingList (std::list<Neighbor>::iterator listIterator)
   	//Packet not forwarded to this neighbor
   		if ((listIterator->neighborDecodingFilter->contains(it->pktId)) || (listIterator->neighborDecodedFilter->contains(it->pktId))) {
   			it = m_waitingList.erase(it);
-  		} else 
+  		} else
         it++;
   	}
 	  while (m_waitingList.size() < WAITING_LIST_SIZE) {
@@ -1462,6 +1507,59 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 	}
 }
 
+void MyNCApp:: UpdateDeliveredList (std::string deliveredStr)
+{
+   std::vector<string>::iterator tempItr = find(m_deliveredList.begin(), m_deliveredList.end(), deliveredStr);
+          if (tempItr == m_deliveredList.end())
+            {
+              if (m_deliveredList.size() == MAX_DELIVERED_LIST_SIZE)
+                {
+                  m_deliveredList.erase(m_deliveredList.begin());
+                  m_deliveredList.push_back (deliveredStr);
+                }
+              else
+                {
+                  m_deliveredList.push_back (deliveredStr);
+                }
+            }
+}
+
+void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
+{
+  /*next step
+  std::vector<Ptr<NetworkCodedDatagram> > m_decodingBuf;
+  std::map<std::string, NCAttribute> m_varList;
+  std::vector<Ptr<NCAttribute> > m_variableList;*/
+
+  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator it1;
+  //std::vector<std::string> toEraseKeys;
+  //toEraseKeys.clear();
+  for (it1=m_decodedList.begin(); it1!= m_decodedList.end(); it1++ ){
+     if (eBf->contains (it1->first))
+     {
+       //toEraseKeys.push_back(it1->first);
+       UpdateDeliveredList(it1->first);
+       m_decodedList.erase(m_decodedList.find(it1->first));
+     }
+  }
+  std::vector<Ptr<DecodedPacketStorage> >::iterator it2;
+  //std::vector<int> toEraseIndexes;
+  //toEraseIndexes.clear();
+  for (it2=m_decodedBuf.begin(); it2<m_decodedBuf.end();it2++){
+       if (eBf->contains (it2->attribute.Key())){
+            //toEraseIndexes.push_back(it->ncDatagram->m_coefsList->first);
+            it2=m_decodedBuf.erase(it2);
+       }
+  }
+ /* for(std::size_t i=0; i<m_decodedBuf.size();i++){
+     if(eBf->contains(m_decodedBuf.at(i)->attribute.key())){
+       m_decodedBuf.erase
+     }
+  }*/
+
+
+}
+
 void MyNCApp::RemoveOldest ()
 {
   std::vector<Ptr<DecodedPacketStorage> >::iterator it;
@@ -1490,7 +1588,7 @@ void MyNCApp::PacketInjector ()
   if (!m_changed) {
     m_changed=true;
     Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
-  }  
+  }
 
 	Ptr<NetworkCodedDatagram> p;
 	p=m_buffer.back();
