@@ -116,7 +116,7 @@ public:
   void Receive (Ptr<Socket> socket);
   void Forward ();
   void UpdateNeighborList(MyHeader, Ipv4Address);
-  void UpdateNeighorhoodEst(std::string);
+  void UpdateNeighorhoodEst(std::string,uint8_t type);
   Ptr<NetworkCodedDatagram> Encode ();
   void Reduce (NetworkCodedDatagram& g);
   void UpdateVarList (NetworkCodedDatagram& g);

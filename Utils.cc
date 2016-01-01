@@ -220,7 +220,7 @@ uint8_t NCAttribute::GetIndex () const
 	return m_index;
 }
 
-void NCAttribute::SetIndex (int index)
+void NCAttribute::SetIndex (uint8_t index)
 {
 	m_index=index;
 }
@@ -283,7 +283,7 @@ CoefElt::CoefElt ()
 {}
 
 // CoefElt Constructor
-CoefElt::CoefElt (uint8_t coef, int index, uint8_t nodeId, uint32_t genTime)
+CoefElt::CoefElt (uint8_t coef, uint8_t index, uint8_t nodeId, uint32_t genTime)
 {
 	m_coef=coef ;
 	m_index=index;
@@ -308,12 +308,12 @@ CoefElt::SetCoef (uint8_t coef)
 	m_coef=coef;
 }
 
-int CoefElt::GetIndex() const
+uint8_t CoefElt::GetIndex() const
 {
 	return m_index;
 }
 
-void CoefElt::SetIndex(int index)
+void CoefElt::SetIndex(uint8_t index)
 {
   m_index=index;
 }
@@ -477,14 +477,14 @@ NetworkCodedDatagram::~NetworkCodedDatagram ()
 }
 
 // NetworkCodedDatagram Methods
-int
+uint8_t
 NetworkCodedDatagram::GetIndex () const
 {
 	return m_index;
 }
 
 void
-NetworkCodedDatagram::SetIndex (int index)
+NetworkCodedDatagram::SetIndex (uint8_t index)
 {
   m_index=index;
 }
@@ -534,7 +534,7 @@ NetworkCodedDatagram::IsDecoded() const
 
 // Validate and LineValidate must be implemented here :
 // Product implementations :
-void NetworkCodedDatagram::Product(int coef, galois::GaloisField *galois)
+void NetworkCodedDatagram::Product(uint8_t coef, galois::GaloisField *galois)
 {
   MapType::iterator it;
 
