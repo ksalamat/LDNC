@@ -97,68 +97,45 @@ Neighbor::Neighbor ()
 Neighbor::~Neighbor ()
 {}
 
-MyHeader::MyHeader ()
+BeaconHeader::BeaconHeader()
 {
-  m_packetType = 0;
-  m_nodeId = 0;
-  m_linCombSize = 0;
-  m_neighborhoodSize = 0;
-  m_decodingBufSize = 0;
-  m_linComb. clear ();
-  m_decodedTableSize=m_decodingTableSize= m_eBfTableSize = 0;
-  m_decodedInsertedElementCount=m_decodingInsertedElementCount= m_eBfInsertedElementCount = 0;
-  m_decodedBitTable=m_decodingBitTable = m_eBfBitTable= 0;
-  m_remainingCapacity = 0;
+    /*m_eBfTableSize=0;
+    m_eBfInsertedElementCount=0;
+    m_eBfBitTable= 0;*/
 }
 
-MyHeader::~MyHeader ()
+BeaconHeader::~BeaconHeader()
 {}
 
+/*
 TypeId
-MyHeader::GetTypeId (void)
+BeaconHeader::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::MyHeader")
-  .SetParent<Header> ()
-  .AddConstructor<MyHeader> ()
+  static TypeId tid = TypeId ("ns3::BeaconHeader")
+  .SetParent<PacketHeader> ()
+  .AddConstructor<BeaconHeader> ()
   ;
   return tid;
-}
-
-TypeId
-MyHeader::GetInstanceTypeId (void) const
-{
-  return GetTypeId ();
-}
-
-void
-MyHeader::Print (std::ostream &os) const
-{
-  os<<"Source="<< m_nodeId <<" Destination=" << m_destId
-  <<" nodeId="<< (int)m_nodeId
-  <<" m_linCombSize = "<<m_linCombSize;
-	for (uint8_t k=0; k<m_linCombSize; k++){
-    std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].nodeId<<":"<<m_linComb[k].index <<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
-	}
-}
+}*/
 
 uint32_t
-MyHeader::GetSerializedSize (void) const
+BeaconHeader::GetSerializedSize (void) const
 {
-  return 15 + 8*m_linCombSize + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
+  return 17 + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
 }
 
 void
-MyHeader::Serialize (Buffer::Iterator start) const
+BeaconHeader::Serialize (Buffer::Iterator start) const
 {
   Buffer::Iterator i = start;
   //i.WriteHtonU32 (m_source.Get());
   i.WriteU8 (m_nodeId);
-  i.WriteU8 (m_destId);
+  //i.WriteU8 (m_destId);
   i.WriteU8 (m_packetType);
  // i.WriteU32 (m_time);
   i.WriteU8 (m_neighborhoodSize);
   i.WriteU8 (m_remainingCapacity);
-  i.WriteU8 (m_linComb.size());
+  //i.WriteU8 (m_linComb.size());
   i.WriteU8 (m_decodingBufSize);
   i.WriteU16 (m_decodedTableSize);
   i.WriteU16 (m_decodedInsertedElementCount);
@@ -175,26 +152,18 @@ MyHeader::Serialize (Buffer::Iterator start) const
   for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++) {
       i.WriteU8 (m_eBfBitTable[j]);
   }
-  for (uint8_t k1=0; k1!=m_linCombSize; k1++) {
-      i.WriteU8 (m_linComb[k1].nodeId);
-      i.WriteU8 (m_linComb[k1].index);
-      i.WriteU8 (m_linComb[k1].coeff);
-      i.WriteU8 (m_linComb[k1].dstId);
-      i.WriteU32 (m_linComb[k1].genTime);
-  }
 }
 
 uint32_t
-MyHeader::Deserialize (Buffer::Iterator start)
+BeaconHeader::Deserialize (Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
   m_nodeId = i.ReadU8 ();
-  m_destId =i.ReadU8 ();
+  //m_destId =i.ReadU8 ();
   m_packetType = i.ReadU8 ();
  // m_time=i.ReadU32 ();
   m_neighborhoodSize = i.ReadU8 ();
   m_remainingCapacity = i.ReadU8 ();
-  m_linCombSize = i.ReadU8 ();
   m_decodingBufSize = i.ReadU8 ();
   m_decodedTableSize = i.ReadU16 ();
   m_decodedInsertedElementCount = i.ReadU16 ();
@@ -229,6 +198,168 @@ MyHeader::Deserialize (Buffer::Iterator start)
     {
       m_eBfBitTable[j] = i.ReadU8 ();
     }
+
+// we return the number of bytes effectively read.
+  return GetSerializedSize ();
+}
+
+void
+BeaconHeader::PuteBF (Ptr<MyBloom_filter> nodeFilterPointer)
+{
+    m_eBfTableSize = nodeFilterPointer->size();
+    m_eBfBitTable = new unsigned char[m_eBfTableSize / BITS_PER_CHAR];
+    std::copy (nodeFilterPointer->table(), nodeFilterPointer->table() + (m_eBfTableSize / BITS_PER_CHAR), m_eBfBitTable);
+    m_eBfInsertedElementCount = nodeFilterPointer->element_count();
+}
+
+Ptr<MyBloom_filter>  BeaconHeader::GeteBF (const std::size_t predictedElementCount, const double falsePositiveProbability) const
+{
+    Ptr<MyBloom_filter> filterPointer;
+    filterPointer = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability, m_nodeId);
+    filterPointer->bit_table_ = new unsigned char[m_eBfTableSize / BITS_PER_CHAR];
+    std::copy(m_eBfBitTable, m_eBfBitTable + (m_eBfTableSize / BITS_PER_CHAR), filterPointer->bit_table_);
+    filterPointer->inserted_element_count_ = m_eBfInsertedElementCount;
+    return filterPointer;
+}
+
+PacketHeader::PacketHeader ()
+{
+  m_packetType = 0;
+  m_nodeId = 0;
+  m_destId = 0;
+  m_linCombSize = 0;
+  m_neighborhoodSize = 0;
+  m_decodingBufSize = 0;
+  m_linComb. clear ();
+  m_decodedTableSize=m_decodingTableSize = 0;
+  m_decodedInsertedElementCount=m_decodingInsertedElementCount = 0;
+  m_decodedBitTable=m_decodingBitTable = 0;
+  m_remainingCapacity = 0;
+
+  //ehtiyat :-)
+  m_eBfTableSize=0;
+  m_eBfInsertedElementCount=0;
+  m_eBfBitTable= 0;
+}
+
+PacketHeader::~PacketHeader ()
+{}
+
+TypeId
+PacketHeader::GetTypeId (void)
+{
+  static TypeId tid = TypeId ("ns3::PacketHeader")
+  .SetParent<Header> ()
+  .AddConstructor<PacketHeader> ()
+  ;
+  return tid;
+}
+
+TypeId
+PacketHeader::GetInstanceTypeId (void) const
+{
+  return GetTypeId ();
+}
+
+void
+PacketHeader::Print (std::ostream &os) const
+{
+  os<<"Source="<< m_nodeId <<" Destination=" << m_destId
+  <<" nodeId="<< (int)m_nodeId
+  <<" m_linCombSize = "<<m_linCombSize;
+	for (uint8_t k=0; k<m_linCombSize; k++){
+    std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].nodeId<<":"<<m_linComb[k].index <<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
+	}
+}
+
+uint32_t
+PacketHeader::GetSerializedSize (void) const
+{
+  return 15 + 8*m_linCombSize + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
+}
+
+void
+PacketHeader::Serialize (Buffer::Iterator start) const
+{
+  Buffer::Iterator i = start;
+  //i.WriteHtonU32 (m_source.Get());
+  i.WriteU8 (m_nodeId);
+  i.WriteU8 (m_destId);
+  i.WriteU8 (m_packetType);
+ // i.WriteU32 (m_time);
+  i.WriteU8 (m_neighborhoodSize);
+  i.WriteU8 (m_remainingCapacity);
+  i.WriteU8 (m_linComb.size());
+  i.WriteU8 (m_decodingBufSize);
+  i.WriteU16 (m_decodedTableSize);
+  i.WriteU16 (m_decodedInsertedElementCount);
+  i.WriteU16 (m_decodingTableSize);
+  i.WriteU16 (m_decodingInsertedElementCount);
+  //i.WriteU16 (m_eBfTableSize);
+  //i.WriteU16 (m_eBfInsertedElementCount);
+  for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_decodedBitTable[j]);
+  }
+  for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_decodingBitTable[j]);
+  }
+  /*for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_eBfBitTable[j]);
+  }*/
+  for (uint8_t k1=0; k1!=m_linCombSize; k1++) {
+      i.WriteU8 (m_linComb[k1].nodeId);
+      i.WriteU8 (m_linComb[k1].index);
+      i.WriteU8 (m_linComb[k1].coeff);
+      i.WriteU8 (m_linComb[k1].dstId);
+      i.WriteU32 (m_linComb[k1].genTime);
+  }
+}
+
+uint32_t
+PacketHeader::Deserialize (Buffer::Iterator start)
+{
+  Buffer::Iterator i = start;
+  m_nodeId = i.ReadU8 ();
+  m_destId =i.ReadU8 ();
+  m_packetType = i.ReadU8 ();
+ // m_time=i.ReadU32 ();
+  m_neighborhoodSize = i.ReadU8 ();
+  m_remainingCapacity = i.ReadU8 ();
+  m_linCombSize = i.ReadU8 ();
+  m_decodingBufSize = i.ReadU8 ();
+  m_decodedTableSize = i.ReadU16 ();
+  m_decodedInsertedElementCount = i.ReadU16 ();
+  m_decodingTableSize = i.ReadU16 ();
+  m_decodingInsertedElementCount = i.ReadU16 ();
+  //m_eBfTableSize = i.ReadU16 ();
+  //m_eBfInsertedElementCount = i.ReadU16 ();
+  if (m_decodedBitTable)
+    {
+      delete[] m_decodedBitTable;
+    }
+  m_decodedBitTable = new unsigned char[m_decodedTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++)
+    {
+      m_decodedBitTable[j] = i.ReadU8 ();
+    }
+  if (m_decodingBitTable)
+    {
+      delete[] m_decodingBitTable;
+    }
+  m_decodingBitTable = new unsigned char[m_decodingTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++)
+    {
+      m_decodingBitTable[j] = i.ReadU8 ();
+    }
+  /*if (m_eBfBitTable)
+    {
+      delete[] m_eBfBitTable;
+    }
+  m_eBfBitTable = new unsigned char[m_eBfTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++)
+    {
+      m_eBfBitTable[j] = i.ReadU8 ();
+    }*/
   m_linComb.clear ();
   LinearCombination lc;
   for (uint8_t k1=0; k1!=m_linCombSize; k1++)
@@ -247,91 +378,91 @@ MyHeader::Deserialize (Buffer::Iterator start)
 }
 
 void
-MyHeader::SetDestination (uint8_t destination)
+PacketHeader::SetDestination (uint8_t destination)
 {
   m_destId = destination;
 }
 
 void
-MyHeader::SetPacketType (uint8_t type)
+PacketHeader::SetPacketType (uint8_t type)
 {
   m_packetType = type;
 }
 
 void
-MyHeader::SetNodeId (uint8_t id)
+PacketHeader::SetNodeId (uint8_t id)
 {
   m_nodeId = id;
 }
 
 void
-MyHeader::SetNeighborhoodSize (uint8_t size)
+PacketHeader::SetNeighborhoodSize (uint8_t size)
 {
     m_neighborhoodSize = size;
 }
 
 void
-MyHeader::SetNeighborDecodingBufSize (uint8_t size)
+PacketHeader::SetNeighborDecodingBufSize (uint8_t size)
 {
     m_decodingBufSize = size;
 }
 
 void
-MyHeader::SetRemainingCapacity (uint8_t remainingCapacity)
+PacketHeader::SetRemainingCapacity (uint8_t remainingCapacity)
 {
     m_remainingCapacity = remainingCapacity;
 }
 
 void
-MyHeader::SetLinearCombinationSize ()
+PacketHeader::SetLinearCombinationSize ()
 {
 	m_linCombSize = m_linComb.size();
 }
 
 uint8_t
-MyHeader::GetDestination (void) const
+PacketHeader::GetDestination (void) const
 {
   return m_destId;
 }
 
 uint8_t
-MyHeader::GetPacketType (void) const
+PacketHeader::GetPacketType (void) const
 {
   return m_packetType;
 }
 
 uint8_t
-MyHeader::GetNodeId (void) const
+PacketHeader::GetNodeId (void) const
 {
   return m_nodeId;
 }
 
 uint8_t
-MyHeader::GetNeighborhoodSize (void) const
+PacketHeader::GetNeighborhoodSize (void) const
 {
   return m_neighborhoodSize;
 }
 
 uint8_t
-MyHeader::GetNeighborDecodingBufSize (void) const
+PacketHeader::GetNeighborDecodingBufSize (void) const
 {
   return m_decodingBufSize;
 }
 
 uint8_t
-MyHeader::GetRemainingCapacity (void) const
+PacketHeader::GetRemainingCapacity (void) const
 {
     return m_remainingCapacity;
 }
 
 uint8_t
-MyHeader::GetLinearCombinationSize (void) const
+PacketHeader::GetLinearCombinationSize (void) const
 {
 	return m_linCombSize;
 }
 
 void
-MyHeader::PutDecodedBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
+PacketHeader::PutDecodedBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
 {
     m_decodedTableSize = nodeFilterPointer->size();
     m_decodedBitTable = new unsigned char[m_decodedTableSize / BITS_PER_CHAR];
@@ -340,7 +471,7 @@ MyHeader::PutDecodedBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
 }
 
 void
-MyHeader::PutDecodingBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
+PacketHeader::PutDecodingBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
 {
     m_decodingTableSize = nodeFilterPointer->size();
     m_decodingBitTable = new unsigned char[m_decodingTableSize / BITS_PER_CHAR];
@@ -348,16 +479,7 @@ MyHeader::PutDecodingBloomFilter (Ptr<MyBloom_filter> nodeFilterPointer)
     m_decodingInsertedElementCount = nodeFilterPointer->element_count();
 }
 
-void
-MyHeader::PuteBF (Ptr<MyBloom_filter> nodeFilterPointer)
-{
-    m_eBfTableSize = nodeFilterPointer->size();
-    m_eBfBitTable = new unsigned char[m_eBfTableSize / BITS_PER_CHAR];
-    std::copy (nodeFilterPointer->table(), nodeFilterPointer->table() + (m_eBfTableSize / BITS_PER_CHAR), m_eBfBitTable);
-    m_eBfInsertedElementCount = nodeFilterPointer->element_count();
-}
-
-Ptr<MyBloom_filter> MyHeader::GetDecodedBloomFilter (const std::size_t predictedElementCount, const double falsePositiveProbability) const
+Ptr<MyBloom_filter> PacketHeader::GetDecodedBloomFilter (const std::size_t predictedElementCount, const double falsePositiveProbability) const
 {
     Ptr<MyBloom_filter> filterPointer;
     filterPointer = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability, m_nodeId);
@@ -367,23 +489,13 @@ Ptr<MyBloom_filter> MyHeader::GetDecodedBloomFilter (const std::size_t predicted
     return filterPointer;
 }
 
-Ptr<MyBloom_filter>  MyHeader::GetDecodingBloomFilter (const std::size_t predictedElementCount, const double falsePositiveProbability) const
+Ptr<MyBloom_filter>  PacketHeader::GetDecodingBloomFilter (const std::size_t predictedElementCount, const double falsePositiveProbability) const
 {
     Ptr<MyBloom_filter> filterPointer;
     filterPointer = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability, m_nodeId);
     filterPointer->bit_table_ = new unsigned char[m_decodingTableSize / BITS_PER_CHAR];
     std::copy(m_decodingBitTable, m_decodingBitTable + (m_decodingTableSize / BITS_PER_CHAR), filterPointer->bit_table_);
     filterPointer->inserted_element_count_ = m_decodingInsertedElementCount;
-    return filterPointer;
-}
-
-Ptr<MyBloom_filter>  MyHeader::GeteBF (const std::size_t predictedElementCount, const double falsePositiveProbability) const
-{
-    Ptr<MyBloom_filter> filterPointer;
-    filterPointer = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability, m_nodeId);
-    filterPointer->bit_table_ = new unsigned char[m_eBfTableSize / BITS_PER_CHAR];
-    std::copy(m_eBfBitTable, m_eBfBitTable + (m_eBfTableSize / BITS_PER_CHAR), filterPointer->bit_table_);
-    filterPointer->inserted_element_count_ = m_eBfInsertedElementCount;
     return filterPointer;
 }
 
@@ -401,7 +513,6 @@ DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
 DecodedPacketStorage::~DecodedPacketStorage() {
 
 }
-
 
 MyNCApp::MyNCApp(): Application()
 {
@@ -506,10 +617,10 @@ MyNCApp::GenerateBeacon ()
 	}
 	NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Beacon broadcast from : "<<m_myNodeId);
 	Ptr<Packet> beaconPacket = Create<Packet> ();
-  MyHeader beaconHeader;
-  beaconHeader.SetDestination (255);// means broadcast
-  beaconHeader.SetPacketType (0);
-  beaconHeader.SetNodeId (m_myNodeId);
+    BeaconHeader beaconHeader;
+    //beaconHeader.SetDestination (255);// means broadcast
+    beaconHeader.SetPacketType (0);
+    beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
 	Ptr<MyBloom_filter> eBF = CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
@@ -576,9 +687,7 @@ MyNCApp::Stop () {
       }
   }
 
-
-
-void MyNCApp::UpdateNeighborList(MyHeader header, Ipv4Address senderIp) {
+void MyNCApp::UpdateNeighborList(PacketHeader header, Ipv4Address senderIp) {
 	bool newNeighbor = true;
 	Time now = Simulator::Now ();
 	std::list<Neighbor>::iterator listIterator;
@@ -675,15 +784,17 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 	Address from;
 	Ptr<Packet> packetIn = socket -> RecvFrom (from);
 	Ipv4Address senderIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
-	MyHeader header;
-//	packetIn-> PeekHeader(header);
-	packetIn-> RemoveHeader(header);
+	PacketHeader header;
+	packetIn-> PeekHeader(header);
 	UpdateNeighborList(header, senderIp);
-	RemoveDeliveredPackets(header.GeteBF(PEC, DFPP));
 	if (header.GetPacketType () == 0) {
+        BeaconHeader bcnHeader;
+        packetIn-> RemoveHeader(bcnHeader);
 		nReceivedBeacons++;
-		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<(int)header.GetNodeId());
+		NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<(int)bcnHeader.GetNodeId());
+        RemoveDeliveredPackets(bcnHeader.GeteBF(PEC, DFPP));
 	} else {
+        packetIn-> RemoveHeader(header);
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one datagram in a node "<<m_myNodeId<<" from : "<<(int)header.GetNodeId());
 		if (m_decodingBuf.size() < DECODING_BUFF_SIZE)
 		{
@@ -716,12 +827,12 @@ void MyNCApp::Forward ()
 			tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
 			tmpEncDatagram = Encode();
       Ptr<Packet> lcPacket = Create<Packet> (m_pktSize);
-      MyHeader lcHeader;
+      PacketHeader lcHeader;
       lcHeader.SetNodeId (m_myNodeId);
       lcHeader.SetDestination(255);
       Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
-      Ptr<MyBloom_filter> eBF = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
+      //Ptr<MyBloom_filter> eBF = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       std::map<std::string, NCAttribute >::iterator itr;
       for (itr=m_varList.begin();itr!=m_varList.end();itr++) {
         tempFilter1->insert(itr->first);
@@ -731,12 +842,12 @@ void MyNCApp::Forward ()
       {
         tempFilter2->insert(itr2->first);
       }
-      for (std::size_t i=0;i<m_deliveredList.size();i++){
+     /* for (std::size_t i=0;i<m_deliveredList.size();i++){
         eBF->insert (m_deliveredList.at(i));
-      }
+      }*/
       lcHeader.PutDecodingBloomFilter (tempFilter1);
       lcHeader.PutDecodedBloomFilter (tempFilter2);
-      lcHeader.PuteBF(eBF);
+      //lcHeader.PuteBF(eBF);
       lcHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
       lcHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
       lcHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
@@ -1319,7 +1430,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           //should change...
           packetDelay += (now.GetMilliSeconds () - it->second.GetGenTime());
           nReceivedPackets++;
-          MyHeader removeHeader;
+          PacketHeader removeHeader;
           packetIn->RemoveHeader(removeHeader);
           nReceivedBytes += packetIn->GetSize ();
           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");

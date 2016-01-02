@@ -13,7 +13,6 @@ public:
   ~MyBloom_filter(){};
 };
 
-
 class Neighbor
 {
 public:
@@ -46,11 +45,11 @@ struct WaitingListMember
 
 typedef std::list<WaitingListMember> WaitingList ;
 
-class MyHeader : public Header
+class PacketHeader : public Header
 {
 public:
-  MyHeader ();
-  virtual ~MyHeader ();
+  PacketHeader ();
+  virtual ~PacketHeader ();
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const;
   virtual void Print (std::ostream &os) const;
@@ -73,10 +72,10 @@ public:
   std::vector<uint8_t> m_pktIdLength;
   void PutDecodedBloomFilter (Ptr<MyBloom_filter> node);
   void PutDecodingBloomFilter (Ptr<MyBloom_filter> node);
-  void PuteBF(Ptr<MyBloom_filter> node);
+//  void PuteBF(Ptr<MyBloom_filter> node);
   Ptr<MyBloom_filter> GetDecodedBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   Ptr<MyBloom_filter> GetDecodingBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
-  Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
+ // Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   void SetRemainingCapacity (uint8_t remainingCapacity);
   uint8_t GetRemainingCapacity (void) const;
   unsigned char* m_decodedBitTable;
@@ -97,6 +96,21 @@ private:
   std::size_t m_eBfInsertedElementCount;
   uint8_t m_remainingCapacity;
   uint8_t m_decodingBufSize;  //conveys neighbor's decodingBufSize
+};
+
+class BeaconHeader: public PacketHeader
+{
+  BeaconHeader();
+  virtual ~BeaconHeader();
+  static TypeId GetTypeId (void);
+  virtual TypeId GetInstanceTypeId (void) const;
+  //virtual void Print (std::ostream &os) const;
+  virtual void Serialize (Buffer::Iterator start) const;
+  virtual uint32_t Deserialize (Buffer::Iterator start);
+  virtual uint32_t GetSerializedSize (void) const;
+  //std::vector<uint8_t> m_pktIdLength;
+  void PuteBF(Ptr<MyBloom_filter> node);
+  Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
 };
 
 class DecodedPacketStorage : public ns3::Object {
@@ -120,7 +134,7 @@ public:
   void GenerateBeacon ();
   void Receive (Ptr<Socket> socket);
   void Forward ();
-  void UpdateNeighborList(MyHeader, Ipv4Address);
+  void UpdateNeighborList(PacketHeader, Ipv4Address);
   void UpdateNeighorhoodEst(std::string,uint8_t type);
   Ptr<NetworkCodedDatagram> Encode ();
   void Reduce (NetworkCodedDatagram& g);
