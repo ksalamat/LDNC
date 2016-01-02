@@ -103,15 +103,24 @@ class BeaconHeader: public PacketHeader
  public:
   //BeaconHeader();
   //virtual ~BeaconHeader();
-  static TypeId GetTypeId (void);
+  //static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const;
-  //virtual void Print (std::ostream &os) const;
+  virtual void Print (std::ostream &os) const;
   virtual void Serialize (Buffer::Iterator start) const;
   virtual uint32_t Deserialize (Buffer::Iterator start);
   virtual uint32_t GetSerializedSize (void) const;
   //std::vector<uint8_t> m_pktIdLength;
   void PuteBF(Ptr<MyBloom_filter> node);
   Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
+};
+
+class StatusFeedbackHeader: public BeaconHeader
+{
+  virtual TypeId GetInstanceTypeId (void) const;
+  virtual void Print (std::ostream &os) const;
+  virtual void Serialize (Buffer::Iterator start) const;
+  virtual uint32_t Deserialize (Buffer::Iterator start);
+  virtual uint32_t GetSerializedSize (void) const;
 };
 
 class DecodedPacketStorage : public ns3::Object {

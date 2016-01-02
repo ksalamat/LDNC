@@ -98,6 +98,121 @@ Neighbor::~Neighbor ()
 {}
 
 /*
+StatusFeedbackHeader::StatusFeedbackHeader()
+{
+    Although the constructors and destructors of the base class are not inherited themselves, its default constructor
+(i.e., its constructor with no parameters) and its destructor are always called when a new object of a derived class
+is created or destroyed.
+}
+
+
+StatusFeedbackHeader::~StatusFeedbackHeader()
+{}
+*/
+
+uint32_t
+StatusFeedbackHeader::GetSerializedSize (void) const
+{
+  return 17-4 + (m_decodedTableSize + m_decodingTableSize) / BITS_PER_CHAR;
+}
+
+void
+StatusFeedbackHeader::Serialize (Buffer::Iterator start) const
+{
+  Buffer::Iterator i = start;
+  //i.WriteHtonU32 (m_source.Get());
+  i.WriteU8 (m_nodeId);
+  //i.WriteU8 (m_destId);
+  i.WriteU8 (m_packetType);
+ // i.WriteU32 (m_time);
+  i.WriteU8 (m_neighborhoodSize);
+  i.WriteU8 (m_remainingCapacity);
+  //i.WriteU8 (m_linComb.size());
+  i.WriteU8 (m_decodingBufSize);
+  i.WriteU16 (m_decodedTableSize);
+  i.WriteU16 (m_decodedInsertedElementCount);
+  i.WriteU16 (m_decodingTableSize);
+  i.WriteU16 (m_decodingInsertedElementCount);
+  //i.WriteU16 (m_eBfTableSize);
+  //i.WriteU16 (m_eBfInsertedElementCount);
+  for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_decodedBitTable[j]);
+  }
+  for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_decodingBitTable[j]);
+  }
+ /* for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++) {
+      i.WriteU8 (m_eBfBitTable[j]);
+  }*/
+}
+
+uint32_t
+StatusFeedbackHeader::Deserialize (Buffer::Iterator start)
+{
+  Buffer::Iterator i = start;
+  m_nodeId = i.ReadU8 ();
+  //m_destId =i.ReadU8 ();
+  m_packetType = i.ReadU8 ();
+ // m_time=i.ReadU32 ();
+  m_neighborhoodSize = i.ReadU8 ();
+  m_remainingCapacity = i.ReadU8 ();
+  m_decodingBufSize = i.ReadU8 ();
+  m_decodedTableSize = i.ReadU16 ();
+  m_decodedInsertedElementCount = i.ReadU16 ();
+  m_decodingTableSize = i.ReadU16 ();
+  m_decodingInsertedElementCount = i.ReadU16 ();
+  //m_eBfTableSize = i.ReadU16 ();
+  //m_eBfInsertedElementCount = i.ReadU16 ();
+  if (m_decodedBitTable)
+    {
+      delete[] m_decodedBitTable;
+    }
+  m_decodedBitTable = new unsigned char[m_decodedTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_decodedTableSize / BITS_PER_CHAR); j++)
+    {
+      m_decodedBitTable[j] = i.ReadU8 ();
+    }
+  if (m_decodingBitTable)
+    {
+      delete[] m_decodingBitTable;
+    }
+  m_decodingBitTable = new unsigned char[m_decodingTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_decodingTableSize / BITS_PER_CHAR); j++)
+    {
+      m_decodingBitTable[j] = i.ReadU8 ();
+    }
+ /* if (m_eBfBitTable)
+    {
+      delete[] m_eBfBitTable;
+    }
+  m_eBfBitTable = new unsigned char[m_eBfTableSize /BITS_PER_CHAR];
+  for (std::size_t j=0; j < (m_eBfTableSize / BITS_PER_CHAR); j++)
+    {
+      m_eBfBitTable[j] = i.ReadU8 ();
+    }*/
+
+// we return the number of bytes effectively read.
+  return GetSerializedSize ();
+}
+
+TypeId
+StatusFeedbackHeader::GetInstanceTypeId (void) const
+{
+  return GetTypeId ();
+}
+
+void
+StatusFeedbackHeader::Print (std::ostream &os) const
+{
+  os<<"Source="<< m_nodeId <<" Destination=" << m_destId
+  <<" nodeId="<< (int)m_nodeId;
+ /* <<" m_linCombSize = "<<m_linCombSize;
+	for (uint8_t k=0; k<m_linCombSize; k++){
+    std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].nodeId<<":"<<m_linComb[k].index <<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
+	}*/
+}
+
+/*
 BeaconHeader::BeaconHeader()
 {
     Although the constructors and destructors of the base class are not inherited themselves, its default constructor
@@ -212,6 +327,23 @@ Ptr<MyBloom_filter>  BeaconHeader::GeteBF (const std::size_t predictedElementCou
     std::copy(m_eBfBitTable, m_eBfBitTable + (m_eBfTableSize / BITS_PER_CHAR), filterPointer->bit_table_);
     filterPointer->inserted_element_count_ = m_eBfInsertedElementCount;
     return filterPointer;
+}
+
+TypeId
+BeaconHeader::GetInstanceTypeId (void) const
+{
+  return GetTypeId ();
+}
+
+void
+BeaconHeader::Print (std::ostream &os) const
+{
+  os<<"Source="<< m_nodeId <<" Destination=" << m_destId
+  <<" nodeId="<< (int)m_nodeId;
+ /* <<" m_linCombSize = "<<m_linCombSize;
+	for (uint8_t k=0; k<m_linCombSize; k++){
+    std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].nodeId<<":"<<m_linComb[k].index <<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
+	}*/
 }
 
 PacketHeader::PacketHeader ()
@@ -876,10 +1008,16 @@ void MyNCApp::Forward ()
         Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 			} else {
         if (m_changed) {
-          lcHeader.SetPacketType (2);
-          lcHeader.m_linComb.clear();
-          lcHeader.SetLinearCombinationSize ();
-          lcPacket->AddHeader (lcHeader);
+          StatusFeedbackHeader statusFbHeader;
+          statusFbHeader.SetPacketType (2);
+          statusFbHeader.SetNodeId (m_myNodeId);
+          statusFbHeader.PutDecodingBloomFilter (tempFilter1);
+          statusFbHeader.PutDecodedBloomFilter (tempFilter2);
+          //statusFbHeader.PuteBF(eBF);
+          statusFbHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
+          statusFbHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
+          statusFbHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
+          lcPacket->AddHeader (statusFbHeader);
           lcPacket->RemoveAllPacketTags ();
           lcPacket->RemoveAllByteTags ();
           sourceSock->Send (lcPacket);
