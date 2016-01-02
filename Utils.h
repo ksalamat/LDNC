@@ -14,9 +14,9 @@ class LinearCombination
 public:
 	LinearCombination();
   ~LinearCombination();
-  	std::string Key();
-  	uint8_t nodeId;
-  	uint8_t index;
+  std::string Key();
+  uint8_t nodeId;
+  uint8_t index;
 	uint8_t coeff;
 	uint8_t dstId;
 	uint32_t genTime;

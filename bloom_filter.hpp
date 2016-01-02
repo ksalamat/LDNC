@@ -413,7 +413,7 @@ protected:
    std::size_t             random_seed_;
    double                  desired_false_positive_probability_;
    friend class MyNCApp;
-   friend class PacketHeader;
+   friend class StatusFeedbackHeader;
    friend class BeaconHeader;
    friend class Experiment;
 };

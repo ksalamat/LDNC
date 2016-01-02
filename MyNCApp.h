@@ -62,6 +62,20 @@ public:
   uint8_t GetPacketType (void) const;
   void SetNodeId (uint8_t id);
   uint8_t GetNodeId (void) const;
+public:
+  uint8_t m_destId;
+  uint8_t m_packetType;
+  uint8_t m_nodeId;
+};
+
+class StatusFeedbackHeader: public PacketHeader
+{
+public:
+  virtual TypeId GetInstanceTypeId (void) const;
+  virtual void Print (std::ostream &os) const;
+  virtual void Serialize (Buffer::Iterator start) const;
+  virtual uint32_t Deserialize (Buffer::Iterator start);
+  virtual uint32_t GetSerializedSize (void) const;
   void SetNeighborhoodSize (uint8_t size);
   uint8_t GetNeighborhoodSize(void) const;
   void SetNeighborDecodingBufSize (uint8_t size);
@@ -69,7 +83,6 @@ public:
   void SetLinearCombinationSize ();
   uint8_t GetLinearCombinationSize (void) const;
   std::vector<LinearCombination> m_linComb;
-  std::vector<uint8_t> m_pktIdLength;
   void PutDecodedBloomFilter (Ptr<MyBloom_filter> node);
   void PutDecodingBloomFilter (Ptr<MyBloom_filter> node);
 //  void PuteBF(Ptr<MyBloom_filter> node);
@@ -78,27 +91,20 @@ public:
  // Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   void SetRemainingCapacity (uint8_t remainingCapacity);
   uint8_t GetRemainingCapacity (void) const;
-  unsigned char* m_decodedBitTable;
-  unsigned char* m_decodingBitTable;
-  unsigned char* m_eBfBitTable;
-public:
-  uint8_t m_destId;
-  uint8_t m_packetType;
-  uint8_t m_nodeId;
   uint8_t m_neighborhoodSize;
   uint8_t m_linCombSize;
- // uint32_t m_time;
-  std::size_t m_decodedTableSize;
-  std::size_t m_decodingTableSize;
-  std::size_t m_eBfTableSize;
   std::size_t m_decodedInsertedElementCount;
   std::size_t m_decodingInsertedElementCount;
-  std::size_t m_eBfInsertedElementCount;
   uint8_t m_remainingCapacity;
   uint8_t m_decodingBufSize;  //conveys neighbor's decodingBufSize
+  std::size_t m_decodedTableSize;
+  std::size_t m_decodingTableSize;
+  unsigned char* m_decodedBitTable;
+  unsigned char* m_decodingBitTable;
+
 };
 
-class BeaconHeader: public PacketHeader
+class BeaconHeader: public StatusFeedbackHeader
 {
  public:
   //BeaconHeader();
@@ -112,16 +118,11 @@ class BeaconHeader: public PacketHeader
   //std::vector<uint8_t> m_pktIdLength;
   void PuteBF(Ptr<MyBloom_filter> node);
   Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
+  std::size_t m_eBfInsertedElementCount;
+  std::size_t m_eBfTableSize;
+  unsigned char* m_eBfBitTable;
 };
 
-class StatusFeedbackHeader: public BeaconHeader
-{
-  virtual TypeId GetInstanceTypeId (void) const;
-  virtual void Print (std::ostream &os) const;
-  virtual void Serialize (Buffer::Iterator start) const;
-  virtual uint32_t Deserialize (Buffer::Iterator start);
-  virtual uint32_t GetSerializedSize (void) const;
-};
 
 class DecodedPacketStorage : public ns3::Object {
 public :
@@ -144,7 +145,7 @@ public:
   void GenerateBeacon ();
   void Receive (Ptr<Socket> socket);
   void Forward ();
-  void UpdateNeighborList(PacketHeader, Ipv4Address);
+  void UpdateNeighborList(StatusFeedbackHeader, Ipv4Address);
   void UpdateNeighorhoodEst(std::string,uint8_t type);
   Ptr<NetworkCodedDatagram> Encode ();
   void Reduce (NetworkCodedDatagram& g);
