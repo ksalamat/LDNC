@@ -81,7 +81,7 @@ public:
   unsigned char* m_decodedBitTable;
   unsigned char* m_decodingBitTable;
   unsigned char* m_eBfBitTable;
-private:
+public:
   uint8_t m_destId;
   uint8_t m_packetType;
   uint8_t m_nodeId;
@@ -100,8 +100,9 @@ private:
 
 class BeaconHeader: public PacketHeader
 {
-  BeaconHeader();
-  virtual ~BeaconHeader();
+ public:
+  //BeaconHeader();
+  //virtual ~BeaconHeader();
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const;
   //virtual void Print (std::ostream &os) const;

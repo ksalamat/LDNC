@@ -97,26 +97,18 @@ Neighbor::Neighbor ()
 Neighbor::~Neighbor ()
 {}
 
+/*
 BeaconHeader::BeaconHeader()
 {
-    /*m_eBfTableSize=0;
-    m_eBfInsertedElementCount=0;
-    m_eBfBitTable= 0;*/
+    Although the constructors and destructors of the base class are not inherited themselves, its default constructor
+(i.e., its constructor with no parameters) and its destructor are always called when a new object of a derived class
+is created or destroyed.
 }
+
 
 BeaconHeader::~BeaconHeader()
 {}
-
-/*
-TypeId
-BeaconHeader::GetTypeId (void)
-{
-  static TypeId tid = TypeId ("ns3::BeaconHeader")
-  .SetParent<PacketHeader> ()
-  .AddConstructor<BeaconHeader> ()
-  ;
-  return tid;
-}*/
+*/
 
 uint32_t
 BeaconHeader::GetSerializedSize (void) const
