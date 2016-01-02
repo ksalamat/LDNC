@@ -71,6 +71,8 @@ public:
 class StatusFeedbackHeader: public PacketHeader
 {
 public:
+  StatusFeedbackHeader();
+  ~StatusFeedbackHeader();
   virtual TypeId GetInstanceTypeId (void) const;
   virtual void Print (std::ostream &os) const;
   virtual void Serialize (Buffer::Iterator start) const;
@@ -107,8 +109,8 @@ public:
 class BeaconHeader: public StatusFeedbackHeader
 {
  public:
-  //BeaconHeader();
-  //virtual ~BeaconHeader();
+  BeaconHeader();
+  ~BeaconHeader();
   //static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const;
   virtual void Print (std::ostream &os) const;

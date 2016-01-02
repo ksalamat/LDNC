@@ -95,18 +95,25 @@ Neighbor::Neighbor () {
 
 Neighbor::~Neighbor () {}
 
-/*
-StatusFeedbackHeader::StatusFeedbackHeader()
-{
-    Although the constructors and destructors of the base class are not inherited themselves, its default constructor
-(i.e., its constructor with no parameters) and its destructor are always called when a new object of a derived class
-is created or destroyed.
+
+StatusFeedbackHeader::StatusFeedbackHeader() {
+  m_decodedInsertedElementCount=0;
+  m_decodingInsertedElementCount=0;
+  m_remainingCapacity=0;
+  m_decodingBufSize=0;
+  m_decodedTableSize=0;
+  m_decodingTableSize=0;
+  m_decodedBitTable=NULL;
+  m_decodingBitTable=NULL;
 }
 
 
 StatusFeedbackHeader::~StatusFeedbackHeader()
-{}
-*/
+{
+  delete[] m_decodedBitTable;
+  delete[] m_decodingBitTable;
+}
+
 
 uint32_t StatusFeedbackHeader::GetSerializedSize (void) const {
   return 15 + (m_decodedTableSize + m_decodingTableSize) / BITS_PER_CHAR+8*m_linCombSize;
@@ -257,18 +264,18 @@ Ptr<MyBloom_filter>  StatusFeedbackHeader::GetDecodingBloomFilter (const std::si
     return filterPointer;
 }
 
-/*
-BeaconHeader::BeaconHeader()
-{
-    Although the constructors and destructors of the base class are not inherited themselves, its default constructor
-(i.e., its constructor with no parameters) and its destructor are always called when a new object of a derived class
-is created or destroyed.
+BeaconHeader::BeaconHeader() {
+  m_eBfInsertedElementCount=0;
+  m_eBfTableSize=0;
+  m_eBfBitTable=NULL;
 }
 
 
 BeaconHeader::~BeaconHeader()
-{}
-*/
+{
+  delete[] m_eBfBitTable;
+}
+
 
 uint32_t
 BeaconHeader::GetSerializedSize (void) const
@@ -419,9 +426,9 @@ void PacketHeader::Serialize (Buffer::Iterator start) const
 {
   Buffer::Iterator i = start;
   //i.WriteHtonU32 (m_source.Get());
+  i.WriteU8 (m_packetType);
   i.WriteU8 (m_nodeId);
   i.WriteU8 (m_destId);
-  i.WriteU8 (m_packetType);
  // i.WriteU32 (m_time);
 }
 
@@ -429,9 +436,9 @@ uint32_t
 PacketHeader::Deserialize (Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
+  m_packetType = i.ReadU8 ();
   m_nodeId = i.ReadU8 ();
   m_destId =i.ReadU8 ();
-  m_packetType = i.ReadU8 ();
 // we return the number of bytes effectively read.
   return GetSerializedSize ();
 }
@@ -1415,7 +1422,7 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           //should change...
           packetDelay += (now.GetMilliSeconds () - it->second.GetGenTime());
           nReceivedPackets++;
-          PacketHeader removeHeader;
+          StatusFeedbackHeader removeHeader;
           packetIn->RemoveHeader(removeHeader);
           nReceivedBytes += packetIn->GetSize ();
           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
