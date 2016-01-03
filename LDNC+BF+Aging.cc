@@ -150,8 +150,6 @@ StatusFeedbackHeader::StatusFeedbackHeader() {
 
 StatusFeedbackHeader::~StatusFeedbackHeader()
 {
-  delete[] m_decodedBitTable;
-  delete[] m_decodingBitTable;
 }
 
 
@@ -221,6 +219,7 @@ uint32_t StatusFeedbackHeader::Deserialize (Buffer::Iterator start) {
     lc.index=i.ReadU8();
     lc.dstId= i.ReadU8();
     lc.genTime=i.ReadU32();
+    m_linComb.push_back(lc);
   }
   return GetSerializedSize ();
 }
@@ -346,12 +345,12 @@ BeaconHeader::BeaconHeader() {
 
 
 BeaconHeader::~BeaconHeader() {
-  delete[] m_eBfBitTable;
+
 }
 
 
 uint32_t BeaconHeader::GetSerializedSize (void) const {
-  return 19 + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
+  return 18 + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
 }
 
 void BeaconHeader::Serialize (Buffer::Iterator start) const {
@@ -416,15 +415,6 @@ uint32_t BeaconHeader::Deserialize (Buffer::Iterator start)
     m_eBfBitTable[j] = i.ReadU8 ();
   }
   m_eBfInsertedElementCount = i.ReadU16 ();
-  m_linCombSize=i.ReadU8 ();
-  LinearCombination lc;
-  for (std::size_t j=0; j < m_linCombSize; j++) {
-    lc.coeff=i.ReadU8();
-    lc.nodeId=i.ReadU8();
-    lc.index=i.ReadU8();
-    lc.dstId= i.ReadU8();
-    lc.genTime=i.ReadU32();
-  }
 // we return the number of bytes effectively read.
   return GetSerializedSize ();
 }
@@ -667,9 +657,17 @@ void MyNCApp::UpdateNeighborList(StatusFeedbackHeader header, Ipv4Address sender
 				listIterator->neighborhoodSize = header.GetNeighborhoodSize();
 				listIterator->neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
         switch (header.GetPacketType ())  {
-          case 0: listIterator->neighborReceivedBeacons++;
-          case 1: listIterator->neighborReceivedPackets++;
-          case 2: listIterator->neighborReceivedStatusFeedbacks++;
+          case 0: {
+            listIterator->neighborReceivedBeacons++;
+            break;
+          }
+          case 1: {
+            listIterator->neighborReceivedPackets++;
+            break;
+          }
+          case 2: {listIterator->neighborReceivedStatusFeedbacks++;
+            break;
+          }
         }
 				newNeighbor = false;
 				break;
@@ -686,9 +684,18 @@ void MyNCApp::UpdateNeighborList(StatusFeedbackHeader header, Ipv4Address sender
 			neighbor.neighborhoodSize = header.GetNeighborhoodSize ();
 			neighbor.neighborDecodingBufSize = header.GetNeighborDecodingBufSize();
       switch (header.GetPacketType ())  {
-        case 0: neighbor.neighborReceivedBeacons++;
-        case 1: neighbor.neighborReceivedPackets++;
-        case 2: neighbor.neighborReceivedStatusFeedbacks++;
+        case 0: {
+          neighbor.neighborReceivedBeacons++;
+          break;
+        }
+        case 1: {
+          neighbor.neighborReceivedPackets++;
+          break;
+        }
+        case 2: {
+          neighbor.neighborReceivedStatusFeedbacks++;
+          break;
+        }
       }
 			NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" nodeId "<<(int)(neighbor.neighborId)<<" Became neighbor of nodeId "<<m_myNodeId);
 			m_neighborhood.push_back (neighbor);
@@ -706,9 +713,18 @@ void MyNCApp::UpdateNeighborList(StatusFeedbackHeader header, Ipv4Address sender
 		NS_LOG_UNCOND("t = "<< now.GetSeconds ()<<" nodeId "<<(int)(neighbor.neighborId)<<" Became neighbor of nodeId "<<m_myNodeId);
 		m_neighborhood.push_back (neighbor);
     switch (header.GetPacketType ()){
-      case 0: neighbor.neighborReceivedBeacons++;
-      case 1: neighbor.neighborReceivedPackets++;
-      case 2: neighbor.neighborReceivedStatusFeedbacks++;
+      case 0: {
+        neighbor.neighborReceivedBeacons++;
+        break;
+      }
+      case 1: {
+        neighbor.neighborReceivedPackets++;
+        break;
+      }
+      case 2: {
+        neighbor.neighborReceivedStatusFeedbacks++;
+        break;
+      }
     }
 		if (m_idle) {
 			m_idle=false;//awake the node to send data
@@ -750,7 +766,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 	Ptr<Packet> packetIn = socket -> RecvFrom (from);
 	Ipv4Address senderIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
   PktTypeTag tag;
-  packetIn->PeekPacketTag(tag);
+  packetIn->RemovePacketTag(tag);
   uint8_t pktType=tag.GetType();
   switch(pktType){
     case 0: {
@@ -760,6 +776,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
       NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Received one beacon in a node "<<m_myNodeId<<" from : "<<(int)bcnHeader.GetNodeId());
       UpdateNeighborList(bcnHeader, senderIp);
       RemoveDeliveredPackets(bcnHeader.GeteBF(PEC, DFPP));
+      break;
     }
     case 1: {
       StatusFeedbackHeader statusHeader;
@@ -777,12 +794,14 @@ void MyNCApp::Receive (Ptr<Socket> socket)
         nc ->m_coefsList[statusHeader.m_linComb[j].Key()]=coef;
       }
       Decode (nc, packetIn);
+      break;
     }
     case 2:{
       StatusFeedbackHeader statusHeader;
       packetIn-> RemoveHeader(statusHeader);
       NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received one status datagram in a node "<<m_myNodeId<<" from : "<<(int)statusHeader.GetNodeId());
       UpdateNeighborList(statusHeader, senderIp);
+      break;
     }
   }
 }
