@@ -152,11 +152,11 @@ public:
   void UpdateVarList (NetworkCodedDatagram& g);
   int CheckCapacity(NetworkCodedDatagram& g);
   void GenerateMatrix ();
-  int GausElim(int M, int N, Ptr<Packet> packetIn);
+  int GausElim(int M, int N);
   void PermuteCol(int col1, int col2, int L);
   void PermuteLine(int lin1, int lin2, int L);
-  void ExtractSolved(uint32_t M, uint32_t N, Ptr<Packet> packetIn);
-  void Decode(Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn);
+  void ExtractSolved(uint32_t M, uint32_t N);
+  void Decode(Ptr<NetworkCodedDatagram> g);
   //Specific to SourceNode
   void CheckWaitingList (std::list<Neighbor>::iterator);
   void MakeSource();
