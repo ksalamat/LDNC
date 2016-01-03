@@ -14,9 +14,9 @@ class LinearCombination
 public:
 	LinearCombination();
   ~LinearCombination();
-  	std::string Key();
-  	uint8_t nodeId;
-  	uint8_t index;
+  std::string Key();
+  uint8_t nodeId;
+  uint8_t index;
 	uint8_t coeff;
 	uint8_t dstId;
 	uint32_t genTime;
@@ -40,7 +40,7 @@ class NCAttribute : public ns3::Object {
 	// data members
 public:
 	uint8_t m_nodeId;
-	int8_t m_index;
+	uint8_t m_index;
 	uint8_t m_destId;
 	uint32_t m_genTime;
 	uint32_t m_receptionNum;
@@ -53,7 +53,7 @@ public:
 	//member functions
 	void SetNodeId (uint8_t nodeId);
 	uint8_t GetNodeId () const;
-	void SetIndex (int index);
+	void SetIndex (uint8_t index);
 	uint8_t GetIndex () const;
 	void SetGenTime (uint32_t genTime);
 	uint32_t GetGenTime () const;
@@ -71,20 +71,20 @@ class CoefElt
 public:
 	// Data Members
 	uint8_t m_coef;
-	int m_index;
+	uint8_t m_index;
 	uint8_t m_nodeId;
 	uint8_t m_destId;
 	uint8_t m_length;
 	uint32_t m_genTime;
 	// Constructors and a Destructor
 	CoefElt ();
-	CoefElt (uint8_t coef, int index, uint8_t nodeId, uint32_t genTime);
+	CoefElt (uint8_t coef, uint8_t index, uint8_t nodeId, uint32_t genTime);
 	~CoefElt ();
 	// Methods
 	uint8_t GetCoef () const;
 	void SetCoef (uint8_t);
-	int GetIndex() const;
-	void SetIndex (int index);
+	uint8_t GetIndex() const;
+	void SetIndex (uint8_t index);
 	uint8_t GetNodeId ();
 	void SetNodeId (uint8_t nodeId);
 	uint32_t GetGenTime () const;
@@ -107,7 +107,7 @@ public:
 	//galois::GaloisField *m_galoisField;
 	MapType m_coefsList;
 	int m_dataLength;
-	int m_index;
+	uint8_t m_index;
 	bool m_decoded;
 	//char * payload;
 
@@ -120,15 +120,15 @@ public:
 	bool operator== (const NetworkCodedDatagram& nc) const;
 	// Methods
 	// void InitializeGaloisField ();
-	int GetIndex () const;
-	void SetIndex (int index);
+	uint8_t GetIndex () const;
+	void SetIndex (uint8_t index);
 	bool IsNull ();
 	int GetLength() const;
 	void SetLength (int length);
 	void SetDecoded();
 	void ResetDecoded ();
 	bool IsDecoded() const;
-	void Product(int coef, galois::GaloisField *galois);
+	void Product(uint8_t coef, galois::GaloisField *galois);
   void Sum (NetworkCodedDatagram& g, galois::GaloisField *galois);
 	void Minus (NetworkCodedDatagram& g, galois::GaloisField *galois);
 };

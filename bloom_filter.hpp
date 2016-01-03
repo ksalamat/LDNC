@@ -412,10 +412,9 @@ protected:
    std::size_t             inserted_element_count_;
    std::size_t             random_seed_;
    double                  desired_false_positive_probability_;
-   friend class SourceNode;
-   friend class RelayNode;
-   friend class DestinationNode;
-   friend class MyHeader;
+   friend class MyNCApp;
+   friend class StatusFeedbackHeader;
+   friend class BeaconHeader;
    friend class Experiment;
 };
 
