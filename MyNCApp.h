@@ -13,6 +13,21 @@ public:
   ~MyBloom_filter(){};
 };
 
+class PktTypeTag : public Tag {
+public:
+   static TypeId GetTypeId (void);
+   virtual TypeId GetInstanceTypeId (void) const;
+   virtual uint32_t GetSerializedSize (void) const;
+   virtual void Serialize (TagBuffer i) const;
+   virtual void Deserialize (TagBuffer i);
+   virtual void Print (std::ostream &os) const;
+   // these are our accessors to our tag structure
+   void SetType (uint8_t value);
+   uint8_t GetType (void) const;
+ private:
+   uint8_t m_PacketType;
+};
+
 class Neighbor
 {
 public:
@@ -45,14 +60,13 @@ struct WaitingListMember
 
 typedef std::list<WaitingListMember> WaitingList ;
 
-class PacketHeader : public Header
-{
+class StatusFeedbackHeader: public Header {
 public:
-  PacketHeader ();
-  virtual ~PacketHeader ();
+  StatusFeedbackHeader();
+  ~StatusFeedbackHeader();
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const;
-  virtual void Print (std::ostream &os) const;
+  virtual void Print (std::ostream &os) const;;
   virtual void Serialize (Buffer::Iterator start) const;
   virtual uint32_t Deserialize (Buffer::Iterator start);
   virtual uint32_t GetSerializedSize (void) const;
@@ -62,22 +76,6 @@ public:
   uint8_t GetPacketType (void) const;
   void SetNodeId (uint8_t id);
   uint8_t GetNodeId (void) const;
-public:
-  uint8_t m_destId;
-  uint8_t m_packetType;
-  uint8_t m_nodeId;
-};
-
-class StatusFeedbackHeader: public PacketHeader
-{
-public:
-  StatusFeedbackHeader();
-  ~StatusFeedbackHeader();
-  virtual TypeId GetInstanceTypeId (void) const;
-  virtual void Print (std::ostream &os) const;
-  virtual void Serialize (Buffer::Iterator start) const;
-  virtual uint32_t Deserialize (Buffer::Iterator start);
-  virtual uint32_t GetSerializedSize (void) const;
   void SetNeighborhoodSize (uint8_t size);
   uint8_t GetNeighborhoodSize(void) const;
   void SetNeighborDecodingBufSize (uint8_t size);
@@ -87,12 +85,13 @@ public:
   std::vector<LinearCombination> m_linComb;
   void PutDecodedBloomFilter (Ptr<MyBloom_filter> node);
   void PutDecodingBloomFilter (Ptr<MyBloom_filter> node);
-//  void PuteBF(Ptr<MyBloom_filter> node);
   Ptr<MyBloom_filter> GetDecodedBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   Ptr<MyBloom_filter> GetDecodingBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
- // Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   void SetRemainingCapacity (uint8_t remainingCapacity);
   uint8_t GetRemainingCapacity (void) const;
+  uint8_t m_destId;
+  uint8_t m_packetType;
+  uint8_t m_nodeId;
   uint8_t m_neighborhoodSize;
   uint8_t m_linCombSize;
   std::size_t m_decodedInsertedElementCount;
@@ -103,7 +102,6 @@ public:
   std::size_t m_decodingTableSize;
   unsigned char* m_decodedBitTable;
   unsigned char* m_decodingBitTable;
-
 };
 
 class BeaconHeader: public StatusFeedbackHeader

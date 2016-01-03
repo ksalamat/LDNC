@@ -75,9 +75,49 @@ static const float K0 = 25.0;
 static const float K1 = 10.0;
 static const float K2 = 0.25;
 static const float MAX_TTL = 255;
-
-
 /////////////////////////////////////////////////////////
+
+
+TypeId PktTypeTag::GetTypeId (void) {
+  static TypeId tid = TypeId ("ns3::PktTypeTag")
+    .SetParent<Tag> ()
+    .AddConstructor<PktTypeTag> ()
+    .AddAttribute ("Packet Type",
+                   "A Packet Type",
+                   EmptyAttributeValue (),
+                   MakeUintegerAccessor (&PktTypeTag::GetType),
+                   MakeUintegerChecker<uint8_t> ())
+    ;
+  return tid;
+}
+
+TypeId PktTypeTag::GetInstanceTypeId (void) const {
+  return GetTypeId ();
+}
+
+uint32_t PktTypeTag::GetSerializedSize (void) const {
+  return 1;
+}
+
+void PktTypeTag::Serialize (TagBuffer i) const {
+  i.WriteU8 (m_PacketType);
+}
+
+void  PktTypeTag::Deserialize (TagBuffer i) {
+  m_PacketType = i.ReadU8 ();
+}
+
+void PktTypeTag::Print (std::ostream &os) const {
+  os << "Type=" << (uint32_t)m_PacketType;
+}
+
+void PktTypeTag::SetType (uint8_t type) {
+   m_PacketType = type;
+}
+
+uint8_t PktTypeTag::GetType (void) const {
+  return m_PacketType;
+}
 
 Neighbor::Neighbor () {
   firstReceptionTime = 0;
@@ -185,8 +225,42 @@ uint32_t StatusFeedbackHeader::Deserialize (Buffer::Iterator start) {
   return GetSerializedSize ();
 }
 
-TypeId StatusFeedbackHeader::GetInstanceTypeId (void) const
+TypeId StatusFeedbackHeader::GetTypeId (void)
 {
+  static TypeId tid = TypeId ("ns3::StatusFeedbackHeader")
+  .SetParent<Header> ()
+  .AddConstructor<StatusFeedbackHeader> ()
+  ;
+  return tid;
+}
+
+void StatusFeedbackHeader::SetPacketType (uint8_t type)
+{
+  m_packetType = type;
+}
+
+void StatusFeedbackHeader::SetNodeId (uint8_t id) {
+  m_nodeId = id;
+}
+
+uint8_t StatusFeedbackHeader::GetPacketType (void) const {
+  return m_packetType;
+}
+
+uint8_t StatusFeedbackHeader::GetNodeId (void) const {
+  return m_nodeId;
+}
+
+uint8_t StatusFeedbackHeader::GetDestination (void) const {
+  return m_destId;
+}
+
+void
+StatusFeedbackHeader::SetDestination (uint8_t destination) {
+  m_destId = destination;
+}
+
+TypeId StatusFeedbackHeader::GetInstanceTypeId (void) const {
   return GetTypeId ();
 }
 
@@ -271,21 +345,16 @@ BeaconHeader::BeaconHeader() {
 }
 
 
-BeaconHeader::~BeaconHeader()
-{
+BeaconHeader::~BeaconHeader() {
   delete[] m_eBfBitTable;
 }
 
 
-uint32_t
-BeaconHeader::GetSerializedSize (void) const
-{
+uint32_t BeaconHeader::GetSerializedSize (void) const {
   return 19 + (m_decodedTableSize + m_decodingTableSize+ m_eBfTableSize) / BITS_PER_CHAR;
 }
 
-void
-BeaconHeader::Serialize (Buffer::Iterator start) const
-{
+void BeaconHeader::Serialize (Buffer::Iterator start) const {
   Buffer::Iterator i = start;
   i.WriteU8 (m_packetType);
   i.WriteU8 (m_nodeId);
@@ -310,8 +379,7 @@ BeaconHeader::Serialize (Buffer::Iterator start) const
   i.WriteU16 (m_eBfInsertedElementCount);
 }
 
-uint32_t
-BeaconHeader::Deserialize (Buffer::Iterator start)
+uint32_t BeaconHeader::Deserialize (Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
   m_packetType = i.ReadU8 ();
@@ -392,94 +460,6 @@ void BeaconHeader::Print (std::ostream &os) const
     std::cout <<" m_linComb["<<k<<"].pktId = "<<m_linComb[k].nodeId<<":"<<m_linComb[k].index <<" m_linComb["<<k<<"].coeff = "<<(int)m_linComb[k].coeff;
 	}
 }
-
-PacketHeader::PacketHeader () { }
-
-PacketHeader::~PacketHeader (){ }
-
-TypeId PacketHeader::GetTypeId (void)
-{
-  static TypeId tid = TypeId ("ns3::PacketHeader")
-  .SetParent<Header> ()
-  .AddConstructor<PacketHeader> ()
-  ;
-  return tid;
-}
-
-TypeId PacketHeader::GetInstanceTypeId (void) const
-{
-  return GetTypeId ();
-}
-
-void PacketHeader::Print (std::ostream &os) const
-{
-  os<<"Source="<< m_nodeId <<" Destination=" << m_destId
-  <<" nodeId="<< (int)m_nodeId;
-}
-
-uint32_t PacketHeader::GetSerializedSize (void) const
-{
-  return 3;
-}
-
-void PacketHeader::Serialize (Buffer::Iterator start) const
-{
-  Buffer::Iterator i = start;
-  //i.WriteHtonU32 (m_source.Get());
-  i.WriteU8 (m_packetType);
-  i.WriteU8 (m_nodeId);
-  i.WriteU8 (m_destId);
- // i.WriteU32 (m_time);
-}
-
-uint32_t
-PacketHeader::Deserialize (Buffer::Iterator start)
-{
-  Buffer::Iterator i = start;
-  m_packetType = i.ReadU8 ();
-  m_nodeId = i.ReadU8 ();
-  m_destId =i.ReadU8 ();
-// we return the number of bytes effectively read.
-  return GetSerializedSize ();
-}
-
-
-void
-PacketHeader::SetPacketType (uint8_t type)
-{
-  m_packetType = type;
-}
-
-void
-PacketHeader::SetNodeId (uint8_t id)
-{
-  m_nodeId = id;
-}
-
-
-uint8_t
-PacketHeader::GetPacketType (void) const
-{
-  return m_packetType;
-}
-
-uint8_t
-PacketHeader::GetNodeId (void) const
-{
-  return m_nodeId;
-}
-
-uint8_t PacketHeader::GetDestination (void) const
-{
-  return m_destId;
-}
-
-void
-PacketHeader::SetDestination (uint8_t destination)
-{
-  m_destId = destination;
-}
-
 
 DecodedPacketStorage::DecodedPacketStorage(Ptr<NetworkCodedDatagram> nc){
   MapType::iterator it=nc->m_coefsList.begin();
@@ -579,6 +559,7 @@ MyNCApp::SetupBeacon ()
 void
 MyNCApp::GenerateBeacon ()
 {
+  PktTypeTag tag;
 	std::list<Neighbor>::iterator it;
 	Time now = Simulator::Now ();
 	// First check if there is inactive neighbors
@@ -599,8 +580,10 @@ MyNCApp::GenerateBeacon ()
 	}
 	NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" Beacon broadcast from : "<<m_myNodeId);
 	Ptr<Packet> beaconPacket = Create<Packet> ();
+  tag.SetType(0);
+  beaconPacket->AddPacketTag(tag);
   BeaconHeader beaconHeader;
-    //beaconHeader.SetDestination (255);// means broadcast
+  beaconHeader.SetDestination (255);// means broadcast
   beaconHeader.SetPacketType (0);
   beaconHeader.SetNodeId (m_myNodeId);
 	Ptr<MyBloom_filter> tempFilter1 =CreateObject<MyBloom_filter> (PEC, DFPP , m_myNodeId);
@@ -766,9 +749,10 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 	Address from;
 	Ptr<Packet> packetIn = socket -> RecvFrom (from);
 	Ipv4Address senderIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
-  PacketHeader smallHeader;
-	packetIn-> PeekHeader(smallHeader);
-  switch(smallHeader.GetPacketType()){
+  PktTypeTag tag;
+  packetIn->PeekPacketTag(tag);
+  uint8_t pktType=tag.GetType();
+  switch(pktType){
     case 0: {
       BeaconHeader bcnHeader;
       nReceivedBeacons++;
@@ -805,6 +789,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 
 void MyNCApp::Forward ()
 {
+  PktTypeTag tag;
 	Time now = Simulator::Now();
 	if (!m_idle) {
 		std::string tmpStr;
@@ -866,6 +851,8 @@ void MyNCApp::Forward ()
 				lcPacket->AddHeader (lcHeader);
 				lcPacket->RemoveAllPacketTags ();
 				lcPacket->RemoveAllByteTags ();
+        tag.SetType(1);
+        lcPacket->AddPacketTag(tag);
 				sourceSock->Send (lcPacket);
         Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
 			} else {
@@ -882,6 +869,8 @@ void MyNCApp::Forward ()
           lcPacket->AddHeader (statusFbHeader);
           lcPacket->RemoveAllPacketTags ();
           lcPacket->RemoveAllByteTags ();
+          tag.SetType(2);
+          lcPacket->AddPacketTag(tag);
           sourceSock->Send (lcPacket);
           m_changed=false;
 //          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
