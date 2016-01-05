@@ -155,8 +155,8 @@ public:
   void GausElim(int M, int N);
   void PermuteCol(int col1, int col2, int L);
   void PermuteLine(int lin1, int lin2, int L);
-  void ExtractSolved(uint32_t M, uint32_t N);
-  void Decode(Ptr<NetworkCodedDatagram> g);
+  void ExtractSolved(uint32_t M, uint32_t N, Ptr<Packet> packetIn);
+  void Decode(Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn);
   //Specific to SourceNode
   void CheckWaitingList (std::list<Neighbor>::iterator);
   void MakeSource();
