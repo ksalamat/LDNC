@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <assert.h>
 #include "MyNCApp.h"
 
 //////////////////////////////////////////////
@@ -55,7 +56,7 @@ static const std::size_t BUFFER_SIZE = 30;
 static const std::size_t WAITING_LIST_SIZE = 10;
 static const std::size_t MAX_VARLIST_SIZE = 50;
 static const std::size_t MaxNumberOfCoeff=10;
-//static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
+static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
 static const std::size_t DECODED_BUFF_SIZE = 200;
 static const std::size_t MAX_DELIVERED_LIST_SIZE = DECODED_BUFF_SIZE;
 static const float NEIGHBOR_TIMER = 1.5;
@@ -71,10 +72,10 @@ static const int variableWeight=1;
 static const int unreceivedWeight=10;
 static const int neighborWeight=5;
 // Aging constants parameters declaration:
-//static const float K0 = 25.0;
-//static const float K1 = 10.0;
-//static const float K2 = 0.25;
-//static const float MAX_TTL = 255;
+static const float K0 = 25.0;
+static const float K1 = 10.0;
+static const float K2 = 0.25;
+static const float MAX_TTL = 255;
 /////////////////////////////////////////////////////////
 
 
@@ -553,8 +554,6 @@ MyNCApp::GenerateBeacon ()
 	std::list<Neighbor>::iterator it;
 	Time now = Simulator::Now ();
 	// First check if there is inactive neighbors
-  if (beaconSock!=sourceSock)
-    NS_LOG_UNCOND("Something WEIRDDDDDDDD");
 	for (it=m_neighborhood.begin(); it!=m_neighborhood.end();) {
 		if (now.GetSeconds() - it->lastReceptionTime > NEIGHBOR_TIMER) {
 			it = m_neighborhood.erase(it);
@@ -793,7 +792,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
         coef.SetIndex(statusHeader.m_linComb[j].index);
         nc ->m_coefsList[statusHeader.m_linComb[j].Key()]=coef;
       }
-      Decode (nc, packetIn);
+      Decode (nc);
       break;
     }
     case 2:{
@@ -918,9 +917,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
   if (l==0){
     return NULL;
   }
-  if (len ==0) {
-    NS_LOG_UNCOND ("ERROR : LEN ==0 while L!=0");
-  }
+  assert(len>0);
 
   int numVar=0;
   int index=0;
@@ -975,34 +972,31 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
         for (it=m_decodingBuf.at(i)->m_coefsList.begin (); it!=m_decodingBuf.at(i)->m_coefsList.end (); it++) {
           itr = m_varList.find (it->first);
           //itr2 = std::find(m_decodedList.begin(),m_decodedList.end(),(*it).second.GetAttribute ());
-          if (!(itr==m_varList.end())) {
-            //If you find the variable in the variable list
-            std::string tmpStr = itr->first;
-            if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
-              if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
-                F.at(L+i)=F.at(L+i) + (double)variableWeight/numVar;
-                //X.at(I+L)=1;
-                //add the constraints here
-                //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
-                //X.at(I+L)=0;
-                A.at(L+i)=numVar;
-              } else {
-                //X.at(I+L)=1;
-                //add the constraints here
-                //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
-                //X.at(I+L)=0;
-                F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
-                val=m_lpMatrix.GetValue(index,i+L)+1;
-                m_lpMatrix.SetValue(index,i+L,val);
-                A.at(L+i)=numVar;
-              }
-              if (((itr->second)).m_destId==listIterator->neighborId) {
-                F.at(i)=F.at(i) + (double)neighborWeight/numVar;
-              }
+          assert(itr!=m_varList.end());
+          std::string tmpStr = itr->first;
+          if (!listIterator->neighborDecodedFilter->contains(tmpStr)) {
+            if (listIterator->neighborDecodingFilter->contains(tmpStr)) {
+              F.at(L+i)=F.at(L+i) + (double)variableWeight/numVar;
+              //X.at(I+L)=1;
+              //add the constraints here
+              //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
+              //X.at(I+L)=0;
+              A.at(L+i)=numVar;
+            } else {
+              //X.at(I+L)=1;
+              //add the constraints here
+              //constraints.add(new LinearConstraint(X,Relationship.LEQ,1));
+              //X.at(I+L)=0;
+              F.at(L+i)=F.at(L+i) + (double)unreceivedWeight/numVar;
+              val=m_lpMatrix.GetValue(index,i+L)+1;
+              m_lpMatrix.SetValue(index,i+L,val);
+              A.at(L+i)=numVar;
             }
-          } else {
-            NS_LOG_UNCOND("Wrong not found in varlist!!!!");
+            if (((itr->second)).m_destId==listIterator->neighborId) {
+              F.at(i)=F.at(i) + (double)neighborWeight/numVar;
+            }
           }
+
         }
       }// for loop over decodingList}
     }//end of iteration over the neighborhood
@@ -1029,24 +1023,24 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
     int M= (int)m_neighborhood.size();
     int i=0;
     for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++) {
-        for (int j=0; j<len;j++) {
-          ia[i*len+j+1]=i+1;
-          ja[i*len+j+1]=j+1;
-          ar[i*len+j+1]=m_lpMatrix.GetValue(i,j);
-          nConstraintMatrixElements++;
-        }
-        if (listIterator->neighborRemainingCapacity>0) {
-          glp_set_row_bnds(myLpProblem, i+1, GLP_DB, 0.0, (double)(listIterator->neighborRemainingCapacity)/(listIterator->neighborhoodSize));
-        } else {
-          glp_set_row_bnds(myLpProblem, i+1, GLP_FX, 0.0, 0.0);
-        }
-        i++;
+      for (int j=0; j<len;j++) {
+        ia[i*len+j+1]=i+1;
+        ja[i*len+j+1]=j+1;
+        ar[i*len+j+1]=m_lpMatrix.GetValue(i,j);
+        nConstraintMatrixElements++;
+      }
+      if (listIterator->neighborRemainingCapacity>0) {
+        glp_set_row_bnds(myLpProblem, i+1, GLP_DB, 0.0, (double)(listIterator->neighborRemainingCapacity)/(listIterator->neighborhoodSize));
+      } else {
+        glp_set_row_bnds(myLpProblem, i+1, GLP_FX, 0.0, 0.0);
+      }
+      i++;
     }
     for (int j=0; j<len;j++) {
-        ia[i*len+j+1]=m_neighborhood.size()+1;
-        ja[i*len+j+1]=j+1;
-        ar[i*len+j+1]=A.at(j);
-        nConstraintMatrixElements++;
+      ia[i*len+j+1]=m_neighborhood.size()+1;
+      ja[i*len+j+1]=j+1;
+      ar[i*len+j+1]=A.at(j);
+      nConstraintMatrixElements++;
     }
     glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
     //let us load the constraint matrix below
@@ -1054,57 +1048,57 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
     glp_simplex(myLpProblem, NULL);
     double objective= glp_get_obj_val(myLpProblem);
     if (objective>0.0) {
-        std::vector<double> probabilities(len);
-        for(int i=0; i<len;i++)
-        {
-          probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
-        }
-        bool first=true;
-        int inserted;
-        Time now = Simulator::Now ();
+      std::vector<double> probabilities(len);
+      for(int i=0; i<len;i++)
+      {
+        probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
+      }
+      bool first=true;
+      int inserted=0;
+      Time now = Simulator::Now ();
 
-        //we build F on map order so the order should be map order there !
-        std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
-        int i=0, varNum=0;
-        for (itr2=m_decodedList.begin();itr2!=m_decodedList.end();itr2++) {
-          if (uniVar->GetValue(0.0,1.0) < probabilities.at(i)){
-            varNum++;
+      //we build F on map order so the order should be map order there !
+      std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
+      int i=0, varNum=0;
+      for (itr2=m_decodedList.begin();itr2!=m_decodedList.end();itr2++) {
+        if (uniVar->GetValue(0.0,1.0) < probabilities.at(i)){
+          varNum++;
+          coef = uniVar->GetInteger (1,255);
+          //NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
+          g=*(itr2->second->ncDatagram);
+          g.Product(coef, m_nodeGaloisField );
+          inserted++;
+          if (first)
+          {
+            nc->operator=(g);
+            first=false;
+          } else {
+            nc->Sum (g, m_nodeGaloisField);
+          }
+          //We have to update neighborhood (WL is to be updated Only in Forward)
+          //UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
+        }
+        i++;
+      }//for over decodedBuf
+      if (!m_degraded){
+        for (uint16_t i=0;i<m_decodingBuf.size();i++) {
+          if (uniVar->GetValue (0.0,1.0) < probabilities.at(i)){
+            numVar=numVar+m_decodingBuf[i]->m_coefsList.size();
             coef = uniVar->GetInteger (1,255);
-            //NS_LOG_UNCOND ("t = "<<Simulator::Now ().GetSeconds()<<" In Encode of nodeId="<<m_myNodeId<<"		"<<"L="<<L<<",len = "<<len<<",l = "<<l<<"	i = "<<(int)i<<" choice="<<choice<<" and random coef for this choice is " <<coef);
-            g=*(itr2->second->ncDatagram);
+            g=(*m_decodingBuf.at(i));
             g.Product(coef, m_nodeGaloisField );
-            inserted++;
-            if (first)
-            {
+            inserted=inserted+g.m_coefsList.size();
+            if (first) {
               nc->operator=(g);
               first=false;
             } else {
               nc->Sum (g, m_nodeGaloisField);
             }
-            //We have to update neighborhood (WL is to be updated Only in Forward)
-            //UpdateWaitingList(m_decodedBuf[i]->attribute.Key());
           }
-          i++;
-        }//for over decodedBuf
-        if (!m_degraded){
-          for (uint16_t i=0;i<m_decodingBuf.size();i++) {
-            if (uniVar->GetValue (0.0,1.0) < probabilities.at(i)){
-              numVar=numVar+m_decodingBuf[i]->m_coefsList.size();
-              coef = uniVar->GetInteger (1,255);
-              g=(*m_decodingBuf.at(i));
-              g.Product(coef, m_nodeGaloisField );
-              inserted=inserted+g.m_coefsList.size();
-              if (first) {
-                nc->operator=(g);
-                first=false;
-              } else {
-                nc->Sum (g, m_nodeGaloisField);
-              }
-            }
-          }//for over decodingBuf
-        }
-        glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
-        return nc;
+        }//for over decodingBuf
+      }
+      glp_delete_prob(myLpProblem);//we have to delete the problem at the end of the encode function
+      return nc;
     } else { //Blocking situation
       NS_LOG_UNCOND("Blocked situation for "<<m_myNodeId);
     }
@@ -1205,9 +1199,7 @@ void MyNCApp::GenerateMatrix ()
 	int N = m_varList.size();
   // Number of equations
 	int M = m_decodingBuf.size();
-  if (M>N) {
-      NS_LOG_UNCOND ("# of equations > # of variables !");
-	}
+  assert(M<=N);
 	m_matrix.SetDimensions (M, N);
   int j;
   bool found;
@@ -1222,11 +1214,8 @@ void MyNCApp::GenerateMatrix ()
           break;
         }
       }
-      if (found) {
-        m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ());
-      } else {
-        NS_LOG_UNCOND ("ERROR in GenerateMatrix");
-      }
+      assert(found);
+      m_matrix.SetValue (i,j, (*coefsLstItr).second.GetCoef ());
     }
 	}
 }
@@ -1385,7 +1374,7 @@ MyNCApp::PermuteLine(int lin1, int lin2, int L)
 }
 
 void
-MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
+MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
 {
 
   uint32_t i,j,k,l;
@@ -1463,14 +1452,10 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
         NS_LOG_UNCOND ("DISCARDED BufferManagement at node"<<m_myNodeId);
       }
       g = m_decodingBuf[i-1]; //solved variable is in g
-      if (g->m_coefsList.size() !=1) {
-        NS_LOG_UNCOND("Error in decoded Packet !");
-      }
+      assert(g->m_coefsList.size()==1);
       Time now = Simulator::Now ();
       it = g -> m_coefsList.begin();
-      if (it->second.m_coef!=1) {
-        NS_LOG_UNCOND("Error in decoded Packet !");
-      }
+      assert(it->second.m_coef==1);
       if (m_myNodeId != it -> second.GetNodeId()) {//we are not the source of the packet !
         if (m_decodedList.find(it->first)!=m_decodedList.end()) { //The packet is already received
           break;
@@ -1480,9 +1465,6 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
           //should change...
           packetDelay += (now.GetMilliSeconds () - it->second.GetGenTime());
           nReceivedPackets++;
-          StatusFeedbackHeader removeHeader;
-          packetIn->RemoveHeader(removeHeader);
-          nReceivedBytes += packetIn->GetSize ();
           NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" "<<" the key "<<it -> first<<" have received in "<<m_myNodeId<<" destination !");
           //should change and merge with above line...
           NS_LOG_UNCOND ("and delivery delay for this packet is : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
@@ -1522,12 +1504,10 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N, Ptr<Packet> packetIn)
       m_decodingBuf.erase (m_decodingBuf.begin () + M);
     }
   }
-  if (M > N) {
-    NS_LOG_UNCOND ("Fatal Error !");
-  }
+  assert(M<= N);
 }
 
-void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
+void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g) {
 	// received packet validity check
   //int tmpNumCoef=g->m_coefsList.size();
  // if (Simulator::Now().GetSeconds()> 526.49)
@@ -1556,9 +1536,7 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
   int M = m_decodingBuf.size();
   // N: number of variables
   int N = m_varList.size();
-  if (M>N) {
-    NS_LOG_UNCOND("Fatal error !");
-  }
+  assert(M<=N);
 
   GenerateMatrix ();
   // L: column length (Number of variables+size of payload)
@@ -1568,7 +1546,6 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g, Ptr<Packet> packetIn) {
   M = m_decodingBuf.size();
   N = m_varList.size();
   ExtractSolved (M,N);
-
   if (M>N)
     {
       NS_LOG_UNCOND ("Problem: # of equations > # of variables");
@@ -1693,30 +1670,15 @@ void MyNCApp:: UpdateDeliveredList (std::string deliveredStr)
 
 void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
 {
-  /*next step
-  std::vector<Ptr<NetworkCodedDatagram> > m_decodingBuf;
-  std::map<std::string, NCAttribute> m_varList;
-  std::vector<Ptr<NCAttribute> > m_variableList;*/
-
-  std::map<std::string, Ptr<DecodedPacketStorage> >::iterator it1;
-  //std::vector<std::string> toEraseKeys;
-  //toEraseKeys.clear();
-  for (it1=m_decodedList.begin(); it1!= m_decodedList.end(); it1++ ){
-     if (eBf->contains (it1->first))
-     {
-       //toEraseKeys.push_back(it1->first);
-       UpdateDeliveredList(it1->first);
-       m_decodedList.erase(m_decodedList.find(it1->first));
-     }
-  }
   std::vector<Ptr<DecodedPacketStorage> >::iterator it2;
-  //std::vector<int> toEraseIndexes;
-  //toEraseIndexes.clear();
-  for (it2=m_decodedBuf.begin(); it2<m_decodedBuf.end();it2++){
-       if (eBf->contains ((*it2) ->attribute.Key())){
-            //toEraseIndexes.push_back(it->ncDatagram->m_coefsList->first);
-            it2=m_decodedBuf.erase(it2);
-       }
+  std::string str;
+  for (it2=m_decodedBuf.begin(); it2!=m_decodedBuf.end();){
+    str=(*it2) ->attribute.Key();
+    if (eBf->contains (str)){
+      it2=m_decodedBuf.erase(it2);
+      m_decodedList.erase(str);
+    } else
+      it2++;
   }
   assert(m_decodedBuf.size()==m_decodedList.size());
   std::set<std::string> toErase;
@@ -1773,7 +1735,6 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
     m_decodingBuf.erase(m_decodingBuf.begin()+toErase.size());
   }
 //  assert(CheckVarList());
-
 }
 
 void MyNCApp::RemoveOldest () {
