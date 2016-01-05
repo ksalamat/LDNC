@@ -152,7 +152,7 @@ public:
   void UpdateVarList (NetworkCodedDatagram& g);
   int CheckCapacity(NetworkCodedDatagram& g);
   void GenerateMatrix ();
-  int GausElim(int M, int N);
+  void GausElim(int M, int N);
   void PermuteCol(int col1, int col2, int L);
   void PermuteLine(int lin1, int lin2, int L);
   void ExtractSolved(uint32_t M, uint32_t N);
@@ -166,6 +166,11 @@ public:
   void GeneratePacket();
   void PacketInjector();
   void RemoveOldest ();
+  void RemoveLine(int);
+  void RemoveCol(int);
+  bool CheckVarList(void);
+
+  void RemoveVariable(std::set<std::string> );
 public:
   std::list<Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source

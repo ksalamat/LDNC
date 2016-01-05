@@ -70,7 +70,7 @@ static const std::size_t PEC = 100;
 static const double DFPP = 0.02;
 static const int variableWeight=1;
 static const int unreceivedWeight=10;
-static const int neighborWeight=10;
+static const int neighborWeight=5;
 // Aging constants parameters declaration:
 static const float K0 = 25.0;
 static const float K1 = 10.0;
@@ -1150,19 +1150,28 @@ int MyNCApp::CheckCapacity(NetworkCodedDatagram& g) {
 void
 MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 {
+//          assert(CheckVarList());
+  Time now = Simulator::Now();
+//  if (now.GetSeconds()>73.7961){
+//    NS_LOG_UNCOND("ERRRROR");
+//  }
+
   MapType::iterator it;
   std::map<std::string, NCAttribute >::iterator itr;
 	std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr2;
   for (it=g.m_coefsList.begin (); it!=g.m_coefsList.end (); it++) {
     itr = m_varList.find (it->first);
     itr2 = m_decodedList.find(it->first);
+    NCAttribute natt;
     if (itr==m_varList.end() && itr2==m_decodedList.end()) {
-      Ptr<NCAttribute> attribute=CreateObject<NCAttribute>(it->second.m_nodeId,it->second.m_index,
+      Ptr<NCAttribute> att=CreateObject<NCAttribute>(it->second.m_nodeId,it->second.m_index,
         it->second.m_destId, it->second.m_genTime);
 //      m_varList.insert(it->first, *(attribute));
-      m_varList[it->first]=*(attribute);
-      m_variableList.push_back(attribute);
+      m_varList[it->first]=*(att);
+      natt=*att;
+      m_variableList.push_back(att);
     }
+//          assert(CheckVarList());
 //    m_variableList.clear();
 //    for (itr=m_varList.begin();itr!=m_varList.end();itr++){
 //      m_variableList.push_back(&(itr->second));
@@ -1172,6 +1181,12 @@ MyNCApp::UpdateVarList (NetworkCodedDatagram& g)
 
 void MyNCApp::GenerateMatrix ()
 {
+  Time now = Simulator::Now();
+//  if (now.GetSeconds()>73.7961){
+//    NS_LOG_UNCOND("ERRRROR");
+//  }
+//  assert(CheckVarList());
+
 	m_matrix.A.clear ();
   std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	MapType::iterator coefsLstItr;
@@ -1179,6 +1194,7 @@ void MyNCApp::GenerateMatrix ()
   std::map<std::string, NCAttribute >::iterator varLstItr;
 	Ptr<NetworkCodedDatagram> g;
 	g =  CreateObject<NetworkCodedDatagram> ();
+  NetworkCodedDatagram nc;
 	// Number of variables
 	int N = m_varList.size();
   // Number of equations
@@ -1189,12 +1205,11 @@ void MyNCApp::GenerateMatrix ()
   bool found;
   for (int i=0;i<M;i++){
     g=m_decodingBuf[i];
+    nc=*g;
     for (coefsLstItr=g->m_coefsList.begin (); coefsLstItr!=g->m_coefsList.end (); coefsLstItr++) {
-      varLstItr = m_varList.find (coefsLstItr->first);
-      assert(varLstItr!=m_varList.end());
       found= false;
       for (j=0; j<N;j++) {
-        if (m_variableList[j]->Key() ==varLstItr->second.Key()) {
+        if (m_variableList[j]->Key() ==coefsLstItr->first) {
           found=true;
           break;
         }
@@ -1205,89 +1220,110 @@ void MyNCApp::GenerateMatrix ()
 	}
 }
 
-int MyNCApp::GausElim (int M, int N)
+bool MyNCApp::CheckVarList(){
+  if (m_variableList.size()!=m_varList.size()){
+    return false;
+  }
+  for (uint i=0;i<m_variableList.size();i++){
+    NS_LOG_UNCOND("i: "<<m_variableList[i]->Key());
+    if (m_varList.find(m_variableList[i]->Key())==m_varList.end()){
+      return false;
+    }
+  }
+  return true;
+}
+
+void MyNCApp::GausElim (int M, int N)
 {
-  NetworkCodedDatagram g;
+  NetworkCodedDatagram g,h;
   int k,i,j,n;
   int pivot;
   m_rank=0;
   // Main Loop : # of iteration = # of lines
   for(k = 0; k < M ; k++) {
     // if pivot is zero, we need to swap
+    h=*(m_decodingBuf[k]);
     bool swp = false;
     while(!swp) {
       // first check if we can exchange with a column larger than k
       if(m_matrix.GetValue(k, k) == 0) {
         // if the pivot is zero we should exchange line or column order !
         for(n = k+1 ; n < N ; n++){
-            if(m_matrix.GetValue(k, n) != 0) {
-              // we have found a column for exchange. Let's swap.
-              // Caution: when swapping column we have to take care of m_varList!
-              PermuteCol(k, n, M);
-              swp = true;
-              break;
-            }
+          if(m_matrix.GetValue(k, n) != 0) {
+            // we have found a column for exchange. Let's swap.
+            // Caution: when swapping column we have to take care of m_varList!
+            PermuteCol(k, n, M);
+            swp = true;
+            break;
           }
-          if (!swp) {
-                  // We have a full zero line = an equation is linearly dependent !
-                  // we have to remove it !
-                  // we search for a line to exchange with it. Begin with the last line
-                  // and reduce matrix size
-                  if (k==(M-1))
-                    {
-                      // we have reached the last line swapping is useless
-                      swp=true;
-                      // This line should be removed
-                      M=M-1;
-                      break;
-                    }
-                  else
-                    {
-                      M=M-1;
-                      PermuteLine(M,k, N);
-                    }
-                }
-            }
-          if (k<M)
-            {
-              // the pivot is not zero. Let's do the operation
-              swp=true;
-              m_rank++;
-              pivot = m_matrix.GetValue(k, k);
-              if (pivot != 1)
-                {
-                  // we have to rescale the line by the pivot
-                  m_decodingBuf[k]->Product(m_nodeGaloisField->div(1,pivot), m_nodeGaloisField);
-                  for(i= k; i < N ; i++)
-                    {
-                      m_matrix.SetValue(k, i , m_nodeGaloisField->div(m_matrix.GetValue(k, i), pivot));
-                    }
-                  //NS_LOG_UNCOND("After Changing PIVOT to 1, printed MATRIX of nodeId="<<m_myNodeId<<" is :");
-                  //m_matrix.PrintMatrix(M,N, m_myNodeId);
-                }
-              // make the value under the pivot equal zero
-              for(i = k+1; i < M ; i++)
-                {
-                  // Line index
-                  if (m_matrix.GetValue(i, k)!=0)
-                    {
-                      int p=m_matrix.GetValue(i, k);
-                      for(j = k; j < N ; j++)
-                        {
-                          //Column index
-                          m_matrix.SetValue(i, j, m_nodeGaloisField->sub(m_matrix.GetValue(i, j), m_nodeGaloisField->mul(p, m_matrix.GetValue(k, j))));
-                        }
-                      g = *m_decodingBuf[k];
-                      g.Product(p, m_nodeGaloisField);
-                      m_decodingBuf[i]->Minus(g, m_nodeGaloisField);
-                    }
-                }
-            }
         }
+        if (!swp) {
+          // We have a full zero line = an equation is linearly dependent !
+          // we have to remove it !
+          // we search for a line to exchange with it. Begin with the last line
+          // and reduce matrix size
+          if (k==(M-1)) {
+            // we have reached the last line swapping is useless
+            swp=true;
+            // This line should be removed
+            RemoveLine(M-1);
+            M=M-1;
+            break;
+          } else {
+            PermuteLine(M,k, N);
+            RemoveLine(M-1);
+            M=M-1;
+          }
+        }
+      }
+      if (k<M) {
+        // the pivot is not zero. Let's do the operation
+        swp=true;
+        m_rank++;
+        pivot = m_matrix.GetValue(k, k);
+        if (pivot != 1) {
+          // we have to rescale the line by the pivot
+          m_decodingBuf[k]->Product(m_nodeGaloisField->div(1,pivot), m_nodeGaloisField);
+          for(i= k; i < N ; i++) {
+            m_matrix.SetValue(k, i , m_nodeGaloisField->div(m_matrix.GetValue(k, i), pivot));
+          }
+          //NS_LOG_UNCOND("After Changing PIVOT to 1, printed MATRIX of nodeId="<<m_myNodeId<<" is :");
+          //m_matrix.PrintMatrix(M,N, m_myNodeId);
+        }
+        // make the value under the pivot equal zero
+        for(i = k+1; i < M ; i++) {
+          // Line index
+          if (m_matrix.GetValue(i, k)!=0) {
+            int p=m_matrix.GetValue(i, k);
+            for(j = k; j < N ; j++) {
+              //Column index
+              m_matrix.SetValue(i, j, m_nodeGaloisField->sub(m_matrix.GetValue(i, j), m_nodeGaloisField->mul(p, m_matrix.GetValue(k, j))));
+            }
+            g = *m_decodingBuf[k];
+            g.Product(p, m_nodeGaloisField);
+            m_decodingBuf[i]->Minus(g, m_nodeGaloisField);
+          }
+        }
+      }
     }
-  ExtractSolved (M,N);
-  return M;
+    h=*(m_decodingBuf[k]);
+  }
 }
+
+void MyNCApp::RemoveLine(int row){
+  m_decodingBuf.erase(m_decodingBuf.begin()+row);
+  m_matrix.RemoveRow(row);
+}
+
+void MyNCApp::RemoveCol(int col){
+//            assert(CheckVarList());
+  std::string str=m_variableList[col]->Key();
+  m_variableList.erase(m_variableList.begin()+col);
+  m_varList.erase(str);
+  m_matrix.RemoveCol(col);
+//            assert(CheckVarList());
+}
+
 
 void
 MyNCApp::PermuteCol(int col1, int col2, int L)
@@ -1295,23 +1331,23 @@ MyNCApp::PermuteCol(int col1, int col2, int L)
   // Method swapping column of the coefficient matrix taking care of var_list.
   int tmp;
   if (col1!=col2)
+  {
+    // swap column in var_list
+    // L : # of rows
+    Ptr<NCAttribute> ptr ;
+
+    ptr = m_variableList[col1];
+    m_variableList[col1] = m_variableList[col2];
+    m_variableList[col2] = ptr;
+
+    // swap column in coefficient matrix
+    for(int l = 0; l < L; l++)
     {
-      // swap column in var_list
-      // L : # of rows
-      Ptr<NCAttribute> ptr ;
-
-      ptr = m_variableList[col1];
-      m_variableList[col1] = m_variableList[col2];
-      m_variableList[col2] = ptr;
-
-     // swap column in coefficient matrix
-      for(int l = 0; l < L; l++)
-        {
-          tmp = m_matrix.GetValue(l,col1);
-          m_matrix.SetValue(l, col1, m_matrix.GetValue(l,col2));
-          m_matrix.SetValue(l, col2, tmp);
-        }
+      tmp = m_matrix.GetValue(l,col1);
+      m_matrix.SetValue(l, col1, m_matrix.GetValue(l,col2));
+      m_matrix.SetValue(l, col2, tmp);
     }
+  }
 }
 
 void
@@ -1320,31 +1356,34 @@ MyNCApp::PermuteLine(int lin1, int lin2, int L)
   // Method swapping line of the coefficient matrix taking care of decodingBuf.
   int tmp;
   if (lin1 != lin2)
+  {
+    // swap line in coefficient matrix
+    for(int l = 0; l < L; l++)
     {
-      // swap line in coefficient matrix
-      for(int l = 0; l < L; l++)
-        {
-          tmp = m_matrix.GetValue(lin1,l);
-          m_matrix.SetValue(lin1, l, m_matrix.GetValue(lin2,l));
-          m_matrix.SetValue(lin2, l, tmp);
-        }
-      // Swap element in decodingBuf
-      Ptr<NetworkCodedDatagram> tmpPointer;
-      tmpPointer = CreateObject<NetworkCodedDatagram> ();
-      tmpPointer = m_decodingBuf[lin1];
-      m_decodingBuf[lin1] = m_decodingBuf[lin2];
-      m_decodingBuf[lin2] = tmpPointer;
+      tmp = m_matrix.GetValue(lin1,l);
+      m_matrix.SetValue(lin1, l, m_matrix.GetValue(lin2,l));
+      m_matrix.SetValue(lin2, l, tmp);
     }
+    // Swap element in decodingBuf
+    Ptr<NetworkCodedDatagram> tmpPointer;
+    tmpPointer = CreateObject<NetworkCodedDatagram> ();
+    tmpPointer = m_decodingBuf[lin1];
+    m_decodingBuf[lin1] = m_decodingBuf[lin2];
+    m_decodingBuf[lin2] = tmpPointer;
+  }
 }
 
 void
 MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
 {
-  uint32_t i,j,k,l,upPivot;
+
+  uint32_t i,j,k,l;
+  uint8_t upPivot, alpha;
   MapType::iterator it,it2, it4;
   //std::vector<NCAttribute>::iterator it3;
   CoefElt coef;
   bool solved=true;
+  NetworkCodedDatagram h;
   Ptr<NetworkCodedDatagram> g= CreateObject<NetworkCodedDatagram>();
   if (M < m_decodingBuf.size()){
     m_decodingBuf.erase(m_decodingBuf.begin()+M, m_decodingBuf.end());
@@ -1352,43 +1391,56 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
   //Check if one variable have been determined
   Ptr<NCAttribute> ptr;
   for (i=M;i>=1;i--) {
+//                assert(CheckVarList());
     solved=true;
     // Prepare the NCdatagram
-    m_decodingBuf[i-1]->m_coefsList.clear();
-    coef.SetCoef(m_matrix.GetValue(i-1, i-1));
-    ptr=m_variableList[i-1];
-    coef.SetIndex(ptr-> GetIndex());
-    coef.SetNodeId(ptr-> GetNodeId ());
-    coef.SetDestination (ptr-> GetDestination());
-    coef.SetGenTime(ptr->GetGenTime());
-//    m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
-    m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
+//     h=*(m_decodingBuf[i-1]);
+//     m_decodingBuf[i-1]->m_coefsList.clear();
+//     coef.SetCoef(m_matrix.GetValue(i-1, i-1));
+//     ptr=m_variableList[i-1];
+//     coef.SetIndex(ptr-> GetIndex());
+//     coef.SetNodeId(ptr-> GetNodeId ());
+//     coef.SetDestination (ptr-> GetDestination());
+//     coef.SetGenTime(ptr->GetGenTime());
+// //    m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
+//    m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
     for (j=i;j<N;j++) {
       if (m_matrix.GetValue(i-1, j)!=0){
         solved=false;
-        coef.SetCoef(m_matrix.GetValue(i-1, j));
-        ptr=m_variableList[j];
-        coef.SetIndex(ptr->GetIndex());
-        coef.SetNodeId(ptr->GetNodeId ());
-        coef.SetDestination (ptr-> GetDestination());
+        break;
+//      coef.SetCoef(m_matrix.GetValue(i-1, j));
+//        ptr=m_variableList[j];
+//        coef.SetIndex(ptr->GetIndex());
+//        coef.SetNodeId(ptr->GetNodeId ());
+//        coef.SetDestination (ptr-> GetDestination());
 //        m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
-        m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
+//        m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
       }
     }
     if (solved){
       // a variable has been solved
       // First propagate this info in higher lines (equations)
+      NetworkCodedDatagram nc;
       for (k=i-1;k>=1;k--){
         // make the value up the pivot equal zero
         //NS_LOG_UNCOND("k is : "<<k<<" i is :"<<i<<"M="<<M<<"  "<<"N="<<N);
         upPivot = m_matrix.GetValue(k-1, i-1);
         if (upPivot!=0) {
+          nc=*(m_decodingBuf[k-1]);
+          alpha=m_nodeGaloisField->div(1,upPivot);
+          m_decodingBuf[k-1]->Product(alpha, m_nodeGaloisField);
+          m_decodingBuf[k-1]->Minus(*(m_decodingBuf[i-1]),m_nodeGaloisField);
+          nc=*(m_decodingBuf[k-1]);
+          m_decodingBuf[k-1]->Product(upPivot,m_nodeGaloisField);
+          nc=*(m_decodingBuf[k-1]);
           for(l = k; l < N ; l++) {
             //Column index
-            m_matrix.SetValue(k-1, l, m_nodeGaloisField->sub(m_matrix.GetValue(k-1, l), m_nodeGaloisField->mul(upPivot, m_matrix.GetValue(i-1,l))));
+            m_matrix.SetValue(k-1, l, m_nodeGaloisField->mul(upPivot, m_nodeGaloisField->sub(m_matrix.GetValue(i-1, l),
+                                      m_nodeGaloisField->mul(alpha, m_matrix.GetValue(k-1,l)))));
           }
         }
       }
+      nc=*(m_decodingBuf[i-1]);
       //NS_LOG_UNCOND ("After ExtractSolved");
       //m_matrix.PrintMatrix(M,N,m_myNodeId);
 
@@ -1444,9 +1496,11 @@ MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
     	  } else
           it2++;
       }
+
+      m_varList.erase(m_varList.find( it->first));
+//      assert(CheckVarList());
       M--;
       N--;
-      m_varList.erase(m_varList.find( it->first));
       m_decodingBuf.erase (m_decodingBuf.begin () + M);
     }
   }
@@ -1488,7 +1542,10 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g) {
   // L: column length (Number of variables+size of payload)
   //   L = N + MDU;
   NS_LOG_UNCOND("t = "<<Simulator::Now ().GetSeconds()<<" NID: "<<m_myNodeId<<" TIME: "<<" STATUS: B "<<M<<" "<<N);
-  M = GausElim(M, N);
+  GausElim(M, N);
+  M = m_decodingBuf.size();
+  N = m_varList.size();
+  ExtractSolved (M,N);
   if (M>N)
     {
       NS_LOG_UNCOND ("Problem: # of equations > # of variables");
@@ -1624,24 +1681,63 @@ void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
       it2++;
   }
   assert(m_decodedBuf.size()==m_decodedList.size());
+  std::set<std::string> toErase;
   //WHAT ABOUT in varLIST !!!!
   std::map<std::string, NCAttribute>::iterator it;
   for (it=m_varList.begin();it!=m_varList.end();it++) {
     str=it ->first;
     if (eBf->contains (str)){
-      std::vector<Ptr<NCAttribute> >::iterator it1;
-      for (it1=m_variableList.begin(); it1!=m_variableList.end();){
-        if (str==(*it1)->Key()){
-          PermuteCol(1,it1-m_variableList.begin(),M);
-
-        }
-      NS_LOG_UNCOND("packet stucked");
+      toErase.insert(str);
     }
   }
 }
 
-void MyNCApp::RemoveOldest ()
-{
+void MyNCApp::RemoveVariable(std::set<std::string> toErase){
+  std::vector<Ptr<NCAttribute> >::iterator it1;
+  uint M, N,index;
+  std::string str2,str3,str4;
+  NetworkCodedDatagram nc;
+  	Time now = Simulator::Now ();
+//  if (now.GetSeconds()>69.7353){
+//    NS_LOG_UNCOND("ERRRROR");
+//  }
+  std::set<std::string>::iterator itr;
+  M=m_decodingBuf.size();
+  N=m_varList.size();
+  int j=0;
+  for (itr=toErase.begin();itr!=toErase.end();itr++){
+//    assert(CheckVarList());
+    for (it1=m_variableList.begin(); it1!=m_variableList.end();){
+      if ((*itr)==(*it1)->Key()){
+        index=it1-m_variableList.begin();
+        it1=m_variableList.erase(it1);
+        m_varList.erase((*itr));
+        PermuteCol(j,index,M);
+        if (m_matrix.GetValue(j,j)==0){
+          for (uint i=1;i<M;i++){
+            if (m_matrix.GetValue(i,j)!=0){
+              PermuteLine(j,i,N);
+              break;
+            }
+          }
+        }
+        break;
+      } else {
+        it1++;
+      }
+    }
+  }
+  GausElim(m_decodingBuf.size(),m_varList.size());
+  N=m_varList.size();
+  if (toErase.size()> M) {
+    m_decodingBuf.clear();
+  } else {
+    m_decodingBuf.erase(m_decodingBuf.begin()+toErase.size());
+  }
+//  assert(CheckVarList());
+}
+
+void MyNCApp::RemoveOldest () {
   std::vector<Ptr<DecodedPacketStorage> >::iterator it;
   uint32_t oldestTime=m_decodedBuf.back()->attribute.GetGenTime();
   int i=0, max=199;

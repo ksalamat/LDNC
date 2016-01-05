@@ -99,6 +99,17 @@ Matrix::GetValue (int i, int j) const
 	return A[i][j];
 }
 
+void Matrix::RemoveRow(int row){
+	A.erase(A.begin()+row);
+	d1--;
+}
+
+void Matrix::RemoveCol(int col){
+	for (uint i=0;i<A.size();i++){
+		A[i].erase(A[i].begin()+col);
+	}
+	d2--;
+}
 void
 Matrix::PrintMatrix (int m, int n, int nodeId) const
 {

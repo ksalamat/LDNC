@@ -34,6 +34,8 @@ public:
 	void SetValue(int, int, int); // first two args are element position specifiers.
 	int	GetValue (int i, int j) const;
 	void PrintMatrix (int m, int n, int nodeId) const;
+	void RemoveRow(int );
+	void RemoveCol(int );
 };
 
 class NCAttribute : public ns3::Object {
