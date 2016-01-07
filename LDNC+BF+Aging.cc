@@ -70,7 +70,7 @@ static const std::size_t PEC = 100;
 static const double DFPP = 0.02;
 static const int variableWeight=1;
 static const int unreceivedWeight=10;
-static const int neighborWeight=5;
+static const int neighborWeight=10;
 // Aging constants parameters declaration:
 //static const float K0 = 25.0;
 //static const float K1 = 10.0;
@@ -888,6 +888,7 @@ void MyNCApp::Forward ()
           statusFbHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
           statusFbHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
           statusFbHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
+          statusFbHeader.SetLinearCombinationSize();
           lcPacket->AddHeader (statusFbHeader);
           lcPacket->RemoveAllPacketTags ();
           lcPacket->RemoveAllByteTags ();
@@ -1058,7 +1059,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
         probabilities.at(i)=glp_get_col_prim(myLpProblem, i+1);
       }
       bool first=true;
-      int inserted;
+      int inserted=0;
       Time now = Simulator::Now ();
 
       //we build F on map order so the order should be map order there !
@@ -1226,7 +1227,7 @@ bool MyNCApp::CheckVarList(){
   if (m_variableList.size()!=m_varList.size()){
     return false;
   }
-  for (uint i=0;i<m_variableList.size();i++){
+  for (unsigned int i=0;i<m_variableList.size();i++){
 //    NS_LOG_UNCOND("i: "<<m_variableList[i]->Key());
     if (m_varList.find(m_variableList[i]->Key())==m_varList.end()){
       return false;
@@ -1729,7 +1730,7 @@ void MyNCApp::RemoveDeliveredPackets (Ptr<MyBloom_filter> eBf)
 
 void MyNCApp::RemoveVariable(std::set<std::string> toErase){
   std::vector<Ptr<NCAttribute> >::iterator it1;
-  uint M, N, ind;
+  unsigned int M, N, ind;
   std::string str2,str3,str4;
 //  NetworkCodedDatagram nc,nc1;
   	Time now = Simulator::Now ();
@@ -1739,7 +1740,7 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
   std::set<std::string>::iterator itr;
   M=m_decodingBuf.size();
   N=m_varList.size();
-  uint j=0, i=0;
+  unsigned int j=0, i=0;
   uint8_t pivot, alpha;
   std::string st;
   for (itr=toErase.begin();itr!=toErase.end();itr++){
@@ -1756,7 +1757,7 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
     PermuteCol(j,ind,M);
     st=m_variableList[j]->Key();
     found=false;
-    for (uint k=i;k<M;k++){
+    for (unsigned int k=i;k<M;k++){
       if (!found) {
         if (m_matrix.GetValue(k,j)!=0){
 //          nc1=*(m_decodingBuf[i]);
@@ -1769,7 +1770,7 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
           if (pivot !=1) {
             alpha=m_nodeGaloisField->div(1,pivot);
             m_decodingBuf[i]->Product(alpha,m_nodeGaloisField);
-            for (uint l=j ; l < N ; l++) {
+            for (unsigned int l=j ; l < N ; l++) {
               m_matrix.SetValue(i, l , m_nodeGaloisField->mul(alpha, m_matrix.GetValue(i, l)));
             }
           }
@@ -1783,7 +1784,7 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
 //          nc=*(m_decodingBuf[k]);
           m_decodingBuf[k]->Minus(*(m_decodingBuf[i]),m_nodeGaloisField);
 //          nc=*(m_decodingBuf[k]);
-          for ( uint l = j; l < N ; l++) {
+          for ( unsigned int l = j; l < N ; l++) {
             m_matrix.SetValue(k,l,m_nodeGaloisField->mul(alpha,m_matrix.GetValue(k, l)));
             m_matrix.SetValue(k,l,m_nodeGaloisField->sub(m_matrix.GetValue(k, l),m_matrix.GetValue(i, l)));
           }
@@ -1797,7 +1798,7 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
   }
   m_decodingBuf.erase(m_decodingBuf.begin(),m_decodingBuf.begin()+i);
   std::string str;
-  for (uint l=0;l<j; l++){
+  for (unsigned int l=0;l<j; l++){
     str=m_variableList[0]->Key();
     m_variableList.erase(m_variableList.begin());
     m_varList.erase(str);

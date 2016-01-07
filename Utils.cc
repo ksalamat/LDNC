@@ -105,7 +105,7 @@ void Matrix::RemoveRow(int row){
 }
 
 void Matrix::RemoveCol(int col){
-	for (uint i=0;i<A.size();i++){
+	for (unsigned int i=0;i<A.size();i++){
 		A[i].erase(A[i].begin()+col);
 	}
 	d2--;
