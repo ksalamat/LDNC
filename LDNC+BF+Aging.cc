@@ -1721,8 +1721,6 @@ void MyNCApp::RemoveDeliveredPackets (uint8_t neighborId)
       }
     }
   }
-  CheckWaitingList(neighborId);
-
   assert(m_decodedBuf.size()==m_decodedList.size());
   std::set<std::string> toErase;
   //WHAT ABOUT in varLIST !!!!
