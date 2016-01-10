@@ -48,6 +48,7 @@ public:
   std::vector<std::string> sourceForwarded;
   Ptr<MyBloom_filter> neighborDecodingFilter;
   Ptr<MyBloom_filter> neighborDecodedFilter;
+  Ptr<MyBloom_filter> neighborReceivedFilter;
 };
 
 struct WaitingListMember
@@ -116,7 +117,7 @@ class BeaconHeader: public StatusFeedbackHeader
   virtual uint32_t Deserialize (Buffer::Iterator start);
   virtual uint32_t GetSerializedSize (void) const;
   //std::vector<uint8_t> m_pktIdLength;
-  void PuteBF(Ptr<MyBloom_filter> node);
+  void PuteBF(Ptr<MyBloom_filter> bf);
   Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   std::size_t m_eBfInsertedElementCount;
   std::size_t m_eBfTableSize;
@@ -145,7 +146,8 @@ public:
   void GenerateBeacon ();
   void Receive (Ptr<Socket> socket);
   void Forward ();
-  void UpdateNeighborList(StatusFeedbackHeader, Ipv4Address);
+  void UpdateNeighborListStatus(StatusFeedbackHeader, Ipv4Address);
+  void UpdateNeighborListBeacon(BeaconHeader,Ipv4Address);
   void UpdateNeighorhoodEst(std::string,uint8_t type);
   Ptr<NetworkCodedDatagram> Encode ();
   void Reduce (NetworkCodedDatagram& g);
@@ -158,11 +160,11 @@ public:
   void ExtractSolved(uint32_t M, uint32_t N);
   void Decode(Ptr<NetworkCodedDatagram> g);
   //Specific to SourceNode
-  void CheckWaitingList (std::list<Neighbor>::iterator);
+  void CheckWaitingList (uint8_t);
   void MakeSource();
   void UpdateWaitingList(std::string);
-  void UpdateDeliveredList (std::string);
-  void RemoveDeliveredPackets (Ptr<MyBloom_filter>);
+  bool UpdateDeliveredList (std::string);
+  void RemoveDeliveredPackets (uint8_t);
   void GeneratePacket();
   void PacketInjector();
   void RemoveOldest ();
@@ -172,7 +174,7 @@ public:
 
   void RemoveVariable(std::set<std::string> );
 public:
-  std::list<Neighbor> m_neighborhood;
+  std::map<uint8_t, Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source
   bool m_idle; //indicate is the app is sending packet or just beacon
   uint32_t m_port;
