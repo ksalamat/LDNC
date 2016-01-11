@@ -198,6 +198,7 @@ NCAttribute::NCAttribute()
 	m_receptionNum=0;
 	m_sendingNum=0;
 	m_length=0;
+	m_destReceived=false;
 }
 
 NCAttribute::NCAttribute(const NCAttribute& nc) {
@@ -208,6 +209,7 @@ NCAttribute::NCAttribute(const NCAttribute& nc) {
 	m_receptionNum=nc.m_receptionNum;
 	m_sendingNum=nc.m_sendingNum;
 	m_length=nc.m_length;
+	m_destReceived=nc.m_destReceived;
 }
 
 NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_t Id, const uint32_t genTime)
@@ -219,6 +221,7 @@ NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_
 	m_receptionNum=0;
 	m_sendingNum=0;
 	m_length=0;
+	m_destReceived=false;
 }
 
 NCAttribute::~NCAttribute (){

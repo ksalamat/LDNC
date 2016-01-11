@@ -90,6 +90,8 @@ public:
   Ptr<MyBloom_filter> GetDecodingBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   void SetRemainingCapacity (uint8_t remainingCapacity);
   uint8_t GetRemainingCapacity (void) const;
+  void SetPktIndex(uint16_t pktIndex);
+  uint16_t GetPktIndex();
   uint8_t m_destId;
   uint8_t m_packetType;
   uint8_t m_nodeId;
@@ -103,6 +105,7 @@ public:
   std::size_t m_decodingTableSize;
   unsigned char* m_decodedBitTable;
   unsigned char* m_decodingBitTable;
+  uint16_t m_pktIndex;
 };
 
 class BeaconHeader: public StatusFeedbackHeader
@@ -206,8 +209,6 @@ public:
   std::vector<Ptr<NCAttribute> > m_variableList; //List only used during the decoding for swapping columns
   //std::map<std::string, NCAttribute> m_decodedList;
   std::vector<string> m_deliveredList;
-
-
   int m_rank;
   Matrix m_matrix;
   LPMatrix m_lpMatrix;//this matrix records unreceived vars. it will be used for constraints in LP
@@ -233,6 +234,7 @@ public:
   uint32_t m_nInjectedPackets;
   uint32_t m_nErasedElements;
   WaitingList m_waitingList;
+  uint16_t m_pktIndex;
 };
 
 class Experiment
