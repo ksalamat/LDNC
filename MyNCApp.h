@@ -151,7 +151,7 @@ public:
   void Forward ();
   void UpdateNeighborListStatus(StatusFeedbackHeader, Ipv4Address);
   void UpdateNeighborListBeacon(BeaconHeader,Ipv4Address);
-  void UpdateNeighorhoodEst(std::string,uint8_t type);
+  bool UpdateNeighorhoodEst(MapType);
   Ptr<NetworkCodedDatagram> Encode ();
   void Reduce (NetworkCodedDatagram& g);
   void UpdateVarList (NetworkCodedDatagram& g);

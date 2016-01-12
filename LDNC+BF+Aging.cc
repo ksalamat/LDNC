@@ -70,7 +70,7 @@ static const std::size_t PEC = 200;
 static const double DFPP = 0.02;
 static const int variableWeight=1;
 static const int unreceivedWeight=10;
-static const int neighborWeight=5;
+static const int neighborWeight=10;
 // Aging constants parameters declaration:
 //static const float K0 = 25.0;
 //static const float K1 = 10.0;
@@ -767,21 +767,38 @@ void MyNCApp::UpdateNeighborListStatus(StatusFeedbackHeader header, Ipv4Address 
 	}
 }
 
-void MyNCApp::UpdateNeighorhoodEst(std::string pktId,uint8_t type){
+bool MyNCApp::UpdateNeighorhoodEst(MapType coefsList){
   std::map<uint8_t, Neighbor>::iterator listIterator;
+  MapType::iterator it;
+  int utility=0;
+  std::string pktId;
 	//we assume any forward packet is entering into all neighbors varList and therefore appears in neighborDecodingFilter
   for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
-    if (!listIterator->second.neighborDecodedFilter->contains(pktId))  {
-      if (type==1){// the variable will be decoded at destination
-        listIterator->second.neighborDecodedFilter->insert(pktId);
-      } else {
-		    if (!listIterator->second.neighborDecodingFilter->contains(pktId)) {
-          listIterator->second.neighborRemainingCapacity--;
-          listIterator->second.neighborDecodingFilter->insert(pktId);
+    listIterator->second.neighborForwardedPackets++;
+    listIterator->second.neighborDecodingBufSize++;
+    if (coefsList.size()==1) {
+      pktId=coefsList.begin()->first;
+      listIterator->second.neighborDecodedFilter->insert(pktId);
+      utility++;
+    } else {
+      for (it=coefsList.begin();it!=coefsList.end();it++){
+        pktId=it->first;
+        if (!listIterator->second.neighborDecodedFilter->contains(pktId))  {
+		      if (!listIterator->second.neighborDecodingFilter->contains(pktId)) {
+            listIterator->second.neighborRemainingCapacity--;
+            listIterator->second.neighborDecodingFilter->insert(pktId);
+          }
         }
+      }
+      if (listIterator->second.neighborDecodingBufSize<MAX_VARLIST_SIZE-listIterator->second.neighborRemainingCapacity){
+        utility++;
       }
     }
 	}
+  if (utility>0){
+    return true;
+  }
+  return false;
 }
 
 void MyNCApp::Receive (Ptr<Socket> socket)
@@ -825,7 +842,7 @@ void MyNCApp::Receive (Ptr<Socket> socket)
     case 2:{
       StatusFeedbackHeader statusHeader;
       packetIn-> RemoveHeader(statusHeader);
-      NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received D"<<StringConcat(statusHeader.m_nodeId,statusHeader.m_pktIndex) <<" in "<<m_myNodeId);
+      NS_LOG_UNCOND("t = "<< now.GetSeconds ()<< " Received S"<<StringConcat(statusHeader.m_nodeId,statusHeader.m_pktIndex) <<" in "<<m_myNodeId);
       UpdateNeighborListStatus(statusHeader, senderIp);
       break;
     }
@@ -835,14 +852,14 @@ void MyNCApp::Receive (Ptr<Socket> socket)
 void MyNCApp::Forward ()
 {
   PktTypeTag tag;
-	Time now = Simulator::Now();
-	if (!m_idle) {
-		std::string tmpStr;
-		if (!m_decodedBuf.empty () || !m_decodingBuf.empty()) {
+  Time now = Simulator::Now();
+  if (!m_idle) {
+    std::string tmpStr;
+    if (!m_decodedBuf.empty () || !m_decodingBuf.empty()) {
       StatusFeedbackHeader lcHeader;
-  		Ptr<NetworkCodedDatagram> tmpEncDatagram;
-			tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
-			tmpEncDatagram = Encode();
+      Ptr<NetworkCodedDatagram> tmpEncDatagram;
+      tmpEncDatagram = CreateObject<NetworkCodedDatagram>();
+      tmpEncDatagram = Encode();
       Ptr<MyBloom_filter> tempFilter1 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       Ptr<MyBloom_filter> tempFilter2 = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
       //Ptr<MyBloom_filter> eBF = CreateObject<MyBloom_filter> (predictedElementCount, falsePositiveProbability , m_myNodeId);
@@ -856,8 +873,8 @@ void MyNCApp::Forward ()
         tempFilter2->insert(itr2->first);
       }
       Ptr<Packet> lcPacket = Create<Packet> (m_pktSize);
-			if (tmpEncDatagram!= NULL && !tmpEncDatagram->IsNull())
-			{
+      if (tmpEncDatagram!= NULL && !tmpEncDatagram->IsNull())
+      {
         lcHeader.SetPacketType (1);
         lcHeader.SetNodeId (m_myNodeId);
         lcHeader.SetDestination(255);
@@ -869,64 +886,58 @@ void MyNCApp::Forward ()
         lcHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
 
         //the line below has changed in the forthcoming: each var should have its own genTime
-				//lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
+        //lcHeader.SetTime(tmpEncDatagram->m_genTime);//Write the datagram's generation time in header
         MapType::iterator it;
-				LinearCombination lc;
+        LinearCombination lc;
         lcHeader.m_linComb.clear();
-				for (it=tmpEncDatagram->m_coefsList.begin (); it!=tmpEncDatagram->m_coefsList.end (); it++)
-				{
-					lc.nodeId = (*it).second.GetNodeId();
-          lc.index=(*it).second.GetIndex();
-          if (tmpEncDatagram->m_coefsList.size()==1) {
-					 UpdateNeighorhoodEst(lc.Key(),1);
-           } else {
-           UpdateNeighorhoodEst(lc.Key(),2);
-           }
-					if (it->second.GetNodeId()==m_myNodeId) {// we are the source of the packet so we have to update waitingList to do backpressure
-						UpdateWaitingList(lc.Key());
-					}
-					lc.coeff = (*it).second.GetCoef();
-					lc.dstId = (*it).second.GetDestination();
-					lc.genTime= (*it).second.GetGenTime();
-					lcHeader.m_linComb.push_back (lc);
-				}
-				lcHeader.SetLinearCombinationSize ();
-				lcPacket->AddHeader (lcHeader);
-				lcPacket->RemoveAllPacketTags ();
-				lcPacket->RemoveAllByteTags ();
-        tag.SetType(1);
-        lcPacket->AddPacketTag(tag);
-				sourceSock->Send (lcPacket);
-        NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" packet broadcast D"<<StringConcat(m_myNodeId,m_pktIndex-1));
-        Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
-			} else {
-        if (m_changed) {
-          StatusFeedbackHeader statusFbHeader;
-          statusFbHeader.SetPacketType (2);
-          statusFbHeader.SetNodeId (m_myNodeId);
-          statusFbHeader.SetDestination(255);
-          statusFbHeader.SetPktIndex(m_pktIndex++);
-          statusFbHeader.PutDecodingBloomFilter (tempFilter1);
-          statusFbHeader.PutDecodedBloomFilter (tempFilter2);
-          //statusFbHeader.PuteBF(eBF);
-          statusFbHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
-          statusFbHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
-          statusFbHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
-          statusFbHeader.SetLinearCombinationSize();
-          lcPacket->AddHeader (statusFbHeader);
+        if (UpdateNeighorhoodEst(tmpEncDatagram->m_coefsList)) {
+          for (it=tmpEncDatagram->m_coefsList.begin (); it!=tmpEncDatagram->m_coefsList.end (); it++) {
+            lc.nodeId = (*it).second.GetNodeId();
+            lc.index=(*it).second.GetIndex();
+            if (it->second.GetNodeId()==m_myNodeId) {// we are the source of the packet so we have to update waitingList to do backpressure
+              UpdateWaitingList(lc.Key());
+            }
+            lc.coeff = (*it).second.GetCoef();
+            lc.dstId = (*it).second.GetDestination();
+            lc.genTime= (*it).second.GetGenTime();
+            lcHeader.m_linComb.push_back (lc);
+          }
+          lcHeader.SetLinearCombinationSize ();
+          lcPacket->AddHeader (lcHeader);
           lcPacket->RemoveAllPacketTags ();
           lcPacket->RemoveAllByteTags ();
-          tag.SetType(2);
+          tag.SetType(1);
           lcPacket->AddPacketTag(tag);
           sourceSock->Send (lcPacket);
-          NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" packet broadcast S"<<StringConcat(m_myNodeId,m_pktIndex-1));
-          m_changed=false;
-//          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+          NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" packet broadcast D"<<StringConcat(m_myNodeId,m_pktIndex-1));
+          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
         }
+      } else {
+        StatusFeedbackHeader statusFbHeader;
+        statusFbHeader.SetPacketType (2);
+        statusFbHeader.SetNodeId (m_myNodeId);
+        statusFbHeader.SetDestination(255);
+        statusFbHeader.SetPktIndex(m_pktIndex++);
+        statusFbHeader.PutDecodingBloomFilter (tempFilter1);
+        statusFbHeader.PutDecodedBloomFilter (tempFilter2);
+        //statusFbHeader.PuteBF(eBF);
+        statusFbHeader.SetNeighborhoodSize ((uint16_t) m_neighborhood.size());
+        statusFbHeader.SetNeighborDecodingBufSize ((uint8_t)m_decodingBuf.size());
+        statusFbHeader.SetRemainingCapacity ((uint8_t) MAX_VARLIST_SIZE - m_varList.size());
+        statusFbHeader.SetLinearCombinationSize();
+        lcPacket->AddHeader (statusFbHeader);
+        lcPacket->RemoveAllPacketTags ();
+        lcPacket->RemoveAllByteTags ();
+        tag.SetType(2);
+        lcPacket->AddPacketTag(tag);
+        sourceSock->Send (lcPacket);
+        NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" packet broadcast S"<<StringConcat(m_myNodeId,m_pktIndex-1));
+        m_changed=false;
+        //          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
       }
-		}
+    }
 
-	}
+  }
 }
 
 Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
@@ -1074,6 +1085,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
     glp_set_row_bnds(myLpProblem, M+1, GLP_DB, 0.0,MaxNumberOfCoeff);
     //let us load the constraint matrix below
     glp_load_matrix(myLpProblem,nConstraintMatrixElements, ia, ja, ar);
+    glp_term_out(GLP_OFF);
     glp_simplex(myLpProblem, NULL);
     double objective= glp_get_obj_val(myLpProblem);
     if (objective>0.0) {
@@ -1496,6 +1508,7 @@ void MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
 //        m_decodedList.insert(it->first,dnc);
         m_decodedList[it->first]=dnc;
         m_decodedBuf.push_back(dnc);
+        NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" key "<< it -> first<<" decoded in "<<m_myNodeId);
       }
       //update matrix m_matrix
       //swap lines
@@ -1535,6 +1548,10 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g) {
   if(g->m_coefsList.size() == 0) {
     nDuplicateRec++;
     NS_LOG_UNCOND("t = " << Simulator::Now().GetSeconds() << " NODE ID: "<< m_myNodeId<<" ACT: Useless packet!!!");
+    if ((m_idle) || !(m_changed)){
+      //send a packet announcing the current state
+      Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+    }
     return;
   }
   if (!m_changed) {
@@ -1578,7 +1595,7 @@ MyNCApp::GeneratePacket ()
 	std::vector<Ptr<NetworkCodedDatagram> >::iterator bufItr;
 	MapType::iterator it2;
 	uint8_t destId;
-	if (m_buffer.size () != BUFFER_SIZE) {
+	if (m_buffer.size () < BUFFER_SIZE) {
     while (true){
 		  destId = uniVar->GetInteger(0,nNode-1);
       if (destId != m_myNodeId){
@@ -1658,9 +1675,10 @@ void MyNCApp::UpdateWaitingList (std::string pktId)
 		if (it->pktId==pktId){
 			for (neighborItr=m_neighborhood.begin(); neighborItr!=m_neighborhood.end(); neighborItr++) {
 				std::stringstream ss;
-				ss << neighborItr->second.neighborId;
+				ss << (int)neighborItr->second.neighborId;
 				strNodeId= ss.str();
-				it->nodeForwardedTo.push_back(strNodeId);
+        if (find(it->nodeForwardedTo.begin(),it->nodeForwardedTo.end(), strNodeId)==it->nodeForwardedTo.end())
+				    it->nodeForwardedTo.push_back(strNodeId);
 			}
 		}
 	}
@@ -1723,6 +1741,9 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
   unsigned int M, N, ind;
   std::string str2,str3,str4;
   Time now = Simulator::Now ();
+  if (now.GetSeconds()>554.257){
+    NS_LOG_UNCOND("PROBLEM");
+  }
   std::set<std::string>::iterator itr;
   M=m_decodingBuf.size();
   N=m_varList.size();
@@ -1794,7 +1815,11 @@ void MyNCApp::RemoveVariable(std::set<std::string> toErase){
     GausElim(m_decodingBuf.size(),m_varList.size());
     ExtractSolved(m_decodingBuf.size(),m_varList.size());
   }
-  assert(m_varList.size()!=1);
+  if (m_decodingBuf.empty()){
+    m_varList.clear();
+    m_variableList.clear();
+
+  }
   assert(m_decodingBuf.size()<= m_varList.size());
 //  assert(CheckVarList());
 }
@@ -1841,7 +1866,6 @@ void MyNCApp::RemoveOldest () {
 
 void MyNCApp::PacketInjector ()
 {
-  assert(m_decodedBuf.size()==m_decodedList.size());
   if (m_decodedBuf.size()==DECODED_BUFF_SIZE) {
     RemoveOldest();
   }
@@ -1849,7 +1873,7 @@ void MyNCApp::PacketInjector ()
     m_changed=true;
     Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
   }
-  if (m_waitingList.size()<=WAITING_LIST_SIZE){
+  if (m_waitingList.size()<WAITING_LIST_SIZE){
     if (m_buffer.size()>0) {
       Ptr<NetworkCodedDatagram> p;
       p=m_buffer.back();
@@ -1874,7 +1898,6 @@ void MyNCApp::PacketInjector ()
       NS_LOG_UNCOND ("t = "<< Simulator::Now().GetSeconds ()<<" Source "<<m_myNodeId<<" injects "<<it->first<<" from m_buffer to m_decodedBuf and m_nInjectedPackets is "<<m_nInjectedPackets);
     }
   }
-  assert(m_decodedBuf.size()==m_decodedList.size());
 }
 
 Experiment::Experiment()
@@ -1889,7 +1912,7 @@ Experiment::Experiment(std::string name):
   s_nRelay (9),
   s_packetSize (1000),
   s_beaconInterval (1),
-  s_packetInterval(0.008),
+  s_packetInterval(0.016),
   s_nGeneratedBeacons (0),
   s_nReceivedBeacons (0),
   s_totalInjectedPackets (0),

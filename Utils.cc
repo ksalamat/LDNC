@@ -30,8 +30,8 @@
 std::string StringConcat (uint16_t nodeId, uint16_t packetUniq)
 {
 	std::stringstream ss1,ss2;
-	ss1 << nodeId;
-	ss2 << packetUniq;
+	ss1 << (int)nodeId;
+	ss2 << (int)packetUniq;
 	return ss1.str()+ ":" + ss2.str();
 }
 
