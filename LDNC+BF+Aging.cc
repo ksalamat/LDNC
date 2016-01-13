@@ -1828,7 +1828,8 @@ void MyNCApp::RemoveOldest () {
   std::vector<Ptr<DecodedPacketStorage> >::iterator it,it1;
   uint32_t oldestReceivedTime=Simulator::Now().GetMilliSeconds();
   uint32_t oldestUnreceivedTime=oldestReceivedTime;
-  int i=0, maxReceived, maxUnreceived;
+  int i=0;
+  size_t maxReceived, maxUnreceived;
   bool foundReceived=false;
 //  if (Simulator::Now().GetSeconds()>506.448)
 //    NS_LOG_UNCOND("Problem");
