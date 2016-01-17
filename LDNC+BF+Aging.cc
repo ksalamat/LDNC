@@ -54,8 +54,8 @@ NS_LOG_COMPONENT_DEFINE ("NetworkCoding");
 
 static const std::size_t BUFFER_SIZE = 30;
 static const std::size_t WAITING_LIST_SIZE = 10;
-static const std::size_t MAX_VARLIST_SIZE = 50;
-static const std::size_t MaxNumberOfCoeff=10;
+static const std::size_t MAX_VARLIST_SIZE = 10;
+static const std::size_t MaxNumberOfCoeff=5;
 //static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
 static const std::size_t DECODED_BUFF_SIZE = 200;
 static const std::size_t MAX_DELIVERED_LIST_SIZE = DECODED_BUFF_SIZE;
@@ -504,9 +504,10 @@ MyNCApp::MyNCApp(): Application()
   {
     std::cout << "Error allocating memory to nodeGaloisField field." << std::endl;
   }
+  nDuplicateRec=0;
 	m_buffer. clear ();
 	m_decodedBuf. clear ();
-    m_decodedList.clear ();
+  m_decodedList.clear ();
 	m_decodingBuf. clear ();
 	m_varList. clear ();
 	m_deliveredList.clear ();
@@ -540,7 +541,7 @@ MyNCApp::SetupSockets () {
   TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
   sinkSock = Socket::CreateSocket (GetNode(), tid);
 	sourceSock = Socket::CreateSocket (GetNode(), tid);
-    beaconSock=sourceSock;
+  beaconSock=sourceSock;
   m_myNCAppIp = GetNode()->GetObject<Ipv4> ()->GetAddress (1, 0).GetLocal ();
 	InetSocketAddress local = InetSocketAddress (m_myNCAppIp, m_port);
   sinkSock->Bind (local);
@@ -555,7 +556,6 @@ MyNCApp::SetupBeacon ()
 {
   nGeneratedBeacons=0;
   nReceivedBeacons=0;
-  nDuplicateRec=0;
   double expireTime = 0.5*expVar->GetValue();
   Simulator::Schedule (Seconds (expireTime), &MyNCApp::GenerateBeacon, this);
 }
@@ -571,9 +571,9 @@ MyNCApp::GenerateBeacon ()
 	for (it=m_neighborhood.begin(); it!=m_neighborhood.end();) {
 		if (now.GetSeconds() - it->second.lastReceptionTime > NEIGHBOR_TIMER) {
       nodeId=it->first;
+			NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" deleted neighbor "<<(int)it->second.neighborId<<" in "<<m_myNodeId<<"'s neighborhood !");
       it++;
 			m_neighborhood.erase(nodeId);
-			NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" deleted neighbor "<<(int)it->second.neighborId<<" in "<<m_myNodeId<<"'s neighborhood !");
 		} else {
       ++it;
     }
@@ -1428,28 +1428,10 @@ void MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
   for (i=M;i>=1;i--) {
 //                assert(CheckVarList());
     solved=true;
-    // Prepare the NCdatagram
-//     h=*(m_decodingBuf[i-1]);
-//     m_decodingBuf[i-1]->m_coefsList.clear();
-//     coef.SetCoef(m_matrix.GetValue(i-1, i-1));
-//     ptr=m_variableList[i-1];
-//     coef.SetIndex(ptr-> GetIndex());
-//     coef.SetNodeId(ptr-> GetNodeId ());
-//     coef.SetDestination (ptr-> GetDestination());
-//     coef.SetGenTime(ptr->GetGenTime());
-// //    m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
-//    m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
-    for (j=i;j<N;j++) {
+  for (j=i;j<N;j++) {
       if (m_matrix.GetValue(i-1, j)!=0){
         solved=false;
         break;
-//      coef.SetCoef(m_matrix.GetValue(i-1, j));
-//        ptr=m_variableList[j];
-//        coef.SetIndex(ptr->GetIndex());
-//        coef.SetNodeId(ptr->GetNodeId ());
-//        coef.SetDestination (ptr-> GetDestination());
-//        m_decodingBuf[i-1]->m_coefsList.insert(MapType::value_type(coef.Key (),coef));
-//        m_decodingBuf[i-1]->m_coefsList[coef.Key()]=coef;
       }
     }
     if (solved){
@@ -1485,26 +1467,32 @@ void MyNCApp::ExtractSolved (uint32_t M, uint32_t N)
         if (m_decodedList.find(it->first)!=m_decodedList.end()) { //The packet is already received
           break;
         }
-        if (m_myNodeId == it -> second.GetDestination()) { // We have received a packet at destination !!!!!
-          if (UpdateDeliveredList(it->first)){
-            packetDelay += (now.GetMilliSeconds () - it->second.GetGenTime());
-            nReceivedPackets++;
-            NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" key "<< it -> first<<" received in "<<m_myNodeId);
-            NS_LOG_UNCOND ("with delivery delay : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
-          } else {
-            NS_LOG_UNCOND("Duplicate Receive!!!");
-          }
-        }
-        if (m_decodedBuf.size() >= DECODED_BUFF_SIZE) {
-          //BufferManagement (we remove the oldest packet from decoded lists)
-          RemoveOldest();
+        if (!m_changed) {
+          m_changed=true;
+          Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
         }
         Ptr<DecodedPacketStorage> dnc=CreateObject<DecodedPacketStorage>();
         dnc->attribute.SetNodeId(it->second.GetNodeId());
         dnc->attribute.SetIndex(it->second.GetIndex());
         dnc->attribute.SetDestination(it->second.GetDestination());
         dnc->attribute.SetGenTime(it->second.GetGenTime());
+        if (m_myNodeId == it -> second.GetDestination()) { // We have received a packet at destination !!!!!
+          if (UpdateDeliveredList(it->first)){
+            dnc->attribute.m_destReceived=true;
+            packetDelay += (now.GetMilliSeconds () - it->second.GetGenTime());
+            nReceivedPackets++;
+            NS_LOG_UNCOND ("t = "<< now.GetSeconds ()<<" key "<< it -> first<<" received in "<<m_myNodeId);
+            NS_LOG_UNCOND ("with delivery delay : "<<(now.GetMilliSeconds () - it->second.GetGenTime()));
+          } else {
+            dnc->attribute.m_destReceived=false;
+            NS_LOG_UNCOND("Duplicate Receive!!!");
+          }
+        }
         dnc->ncDatagram=g;
+        if (m_decodedBuf.size() >= DECODED_BUFF_SIZE) {
+          //BufferManagement (we remove the oldest packet from decoded lists)
+          RemoveOldest();
+        }
 //        m_decodedList.insert(it->first,dnc);
         m_decodedList[it->first]=dnc;
         m_decodedBuf.push_back(dnc);
@@ -1554,10 +1542,10 @@ void MyNCApp::Decode (Ptr<NetworkCodedDatagram> g) {
     }
     return;
   }
-  if (!m_changed) {
-    m_changed=true;
-    Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
-   }
+//  if (!m_changed) {
+//    m_changed=true;
+//    Simulator::Schedule (Seconds (m_packetInterval), &MyNCApp::Forward, this);
+//   }
   if (CheckCapacity(*g)) {
     m_decodingBuf.push_back(g);
     UpdateVarList(*g);
@@ -1718,8 +1706,10 @@ void MyNCApp::RemoveDeliveredPackets (uint8_t neighborId)
     if (!(*it1)->attribute.m_destReceived){
       str=(*it1)->attribute.Key();
       if (eBf->contains (str)) {
-        UpdateDeliveredList(str);
-        (*it1)->attribute.m_destReceived = true;
+        if (!(*it1)->attribute.m_destReceived) {
+          UpdateDeliveredList(str);
+          (*it1)->attribute.m_destReceived = true;
+        }
       }
     }
   }
@@ -1729,6 +1719,7 @@ void MyNCApp::RemoveDeliveredPackets (uint8_t neighborId)
   std::map<std::string, NCAttribute>::iterator it;
   for (it=m_varList.begin();it!=m_varList.end();it++) {
     if (eBf->contains (it->first)){
+      UpdateDeliveredList(it->first);
       toErase.insert(it->first);
     }
   }
@@ -1857,7 +1848,7 @@ void MyNCApp::RemoveOldest () {
     m_decodedList.erase(str);
   } else {
     assert(maxUnreceived<m_decodedBuf.size());
-    NS_LOG_UNCOND("Oldest Received Packet in : "<< maxReceived);
+    NS_LOG_UNCOND("Oldest unReceived Packet in : "<< maxReceived);
     std::string str=m_decodedBuf[maxUnreceived]->attribute.Key();
     m_decodedBuf.erase(m_decodedBuf.begin()+maxUnreceived);
     m_decodedList.erase(str);
@@ -1906,7 +1897,7 @@ Experiment::Experiment()
 
 Experiment::Experiment(std::string name):
  	s_output (name),
-  s_simulationTime (1000),
+  s_simulationTime (2500),
   s_verbose (false),
   s_logComponent (false),
   s_nSource (3),
@@ -2085,6 +2076,7 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 	uint32_t nReceivedLinearCombinations = 0;
 	uint32_t bufferOccupation = 0;
 	uint32_t sourceBuffOccupation = 0;
+  uint32_t deliveredListSize=0;
 
 	NS_LOG_UNCOND ("----------------------------------------------------------------------------------------------------------------");
 	Ptr<MyNCApp> ptrsrcApp;
@@ -2105,9 +2097,11 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		bufferOccupation += (ptrsrcApp->m_decodedBuf).size()+(ptrsrcApp->m_decodingBuf).size();
 		sourceBuffOccupation += (ptrsrcApp->m_buffer).size();
 		s_packetDelay+= ptrsrcApp->packetDelay;
+    deliveredListSize+=ptrsrcApp->m_deliveredList.size();
 		NS_LOG_UNCOND ("srcBuff size of source "<<(int)i<<" is "<< (ptrsrcApp->m_buffer).size());
 		NS_LOG_UNCOND ("m_decodedBuf size of source "<<(int)i<<" is "<< (ptrsrcApp->m_decodedBuf).size());
 		NS_LOG_UNCOND ("m_decodingBuf size of source "<<(int)i<<" is "<< (ptrsrcApp->m_decodingBuf).size());
+    NS_LOG_UNCOND("m_deliveredList size of source " <<(int)i<<" is "<< (ptrsrcApp->m_deliveredList).size());
 	}
 
 	NS_LOG_UNCOND ("----------------------------------------------------------------------------------------------------------------");
@@ -2124,9 +2118,12 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		nRelaysOldestDiscardedNum += ptrRlyApp-> oldestDiscardedNum;
 		bufferOccupation += (ptrRlyApp->m_decodedBuf).size()+(ptrRlyApp->m_decodingBuf).size();
 		s_nReceivedPackets += ptrRlyApp-> nReceivedPackets;
-		s_packetDelay+= ptrsrcApp->packetDelay;
+		s_packetDelay+= ptrRlyApp->packetDelay;
+    deliveredListSize+=ptrRlyApp->m_deliveredList.size();
 		NS_LOG_UNCOND ("s_decodedBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodedBuf).size());
 		NS_LOG_UNCOND ("s_decodingBuf size of relay "<<(int)i<<" is "<< (ptrRlyApp->m_decodingBuf).size());
+    NS_LOG_UNCOND("m_deliveredList size of relay " <<(int)i<<" is "<< (ptrRlyApp->m_deliveredList).size());
+
 	}
 
 	NS_LOG_UNCOND ("----------------------------------------------------------------------------------------------------------------");
@@ -2151,8 +2148,10 @@ Experiment::ApplicationSetup (const WifiHelper &wifi, const YansWifiPhyHelper &w
 		    //NS_LOG_UNCOND ("Total Number of beacons received in nodes is : "<<m_nReceivedBeacons);
 		    //NS_LOG_UNCOND ("Total Number of generated beacons is : "<<m_nGeneratedBeacons);
 	NS_LOG_UNCOND ("Average Delay is : "<<s_packetDelay/s_nReceivedPackets/1000<<" seconds");
-	NS_LOG_UNCOND ("Average m_Buffer occuapancy is : "<<bufferOccupation/ (s_nSource + s_nRelay));
-	NS_LOG_UNCOND ("Average Source's m_srcBuff occupancy is : "<< sourceBuffOccupation / s_nSource);
+	NS_LOG_UNCOND ("Average node Buffer occuapancy is : "<<bufferOccupation/ (s_nSource + s_nRelay));
+	NS_LOG_UNCOND ("Average Source's m_Buffer occupancy is : "<< sourceBuffOccupation / s_nSource);
+  NS_LOG_UNCOND("Average receivedListSize is : " <<deliveredListSize/(s_nSource+s_nRelay));
+
 
 	Simulator::Destroy ();
 

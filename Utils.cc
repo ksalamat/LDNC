@@ -212,7 +212,7 @@ NCAttribute::NCAttribute(const NCAttribute& nc) {
 	m_destReceived=nc.m_destReceived;
 }
 
-NCAttribute::NCAttribute (const uint8_t nodeId, const int8_t index, const uint8_t Id, const uint32_t genTime)
+NCAttribute::NCAttribute (const uint8_t nodeId, const int16_t index, const uint8_t Id, const uint32_t genTime)
 {
 	m_nodeId=nodeId;
 	m_index=index;
@@ -229,12 +229,12 @@ NCAttribute::~NCAttribute (){
 }
 
 // implementation of NCAttribute methods
-uint8_t NCAttribute::GetIndex () const
+uint16_t NCAttribute::GetIndex () const
 {
 	return m_index;
 }
 
-void NCAttribute::SetIndex (uint8_t index)
+void NCAttribute::SetIndex (uint16_t index)
 {
 	m_index=index;
 }
@@ -297,7 +297,7 @@ CoefElt::CoefElt ()
 {}
 
 // CoefElt Constructor
-CoefElt::CoefElt (uint8_t coef, uint8_t index, uint8_t nodeId, uint32_t genTime)
+CoefElt::CoefElt (uint8_t coef, uint16_t index, uint8_t nodeId, uint32_t genTime)
 {
 	m_coef=coef ;
 	m_index=index;
@@ -322,12 +322,12 @@ CoefElt::SetCoef (uint8_t coef)
 	m_coef=coef;
 }
 
-uint8_t CoefElt::GetIndex() const
+uint16_t CoefElt::GetIndex() const
 {
 	return m_index;
 }
 
-void CoefElt::SetIndex(uint8_t index)
+void CoefElt::SetIndex(uint16_t index)
 {
   m_index=index;
 }
@@ -491,14 +491,14 @@ NetworkCodedDatagram::~NetworkCodedDatagram ()
 }
 
 // NetworkCodedDatagram Methods
-uint8_t
+uint16_t
 NetworkCodedDatagram::GetIndex () const
 {
 	return m_index;
 }
 
 void
-NetworkCodedDatagram::SetIndex (uint8_t index)
+NetworkCodedDatagram::SetIndex (uint16_t index)
 {
   m_index=index;
 }
