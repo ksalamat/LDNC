@@ -10,6 +10,9 @@ public:
   MyBloom_filter(const std::size_t& predicted_element_count,
                 const double& false_positive_probability,
                 const std::size_t& random_seed) : Object(), bloom_filter(predicted_element_count,false_positive_probability, random_seed){};
+  MyBloom_filter(const std::size_t& table_size, const std::size_t& salt_count,
+               const std::size_t& random_seed, unsigned char* buffer) : Object(),
+               bloom_filter(table_size,salt_count,random_seed,buffer){};
   ~MyBloom_filter(){};
 };
 
@@ -47,7 +50,8 @@ public:
   Ipv4Address neighborIp;
   std::vector<std::string> sourceForwarded;
   Ptr<MyBloom_filter> neighborDecodingFilter;
-  Ptr<MyBloom_filter> neighborDecodedFilter;
+  Ptr<MyBloom_filter> smallNeighborDecodedFilter;
+  Ptr<MyBloom_filter> bigNeighborDecodedFilter;
   Ptr<MyBloom_filter> neighborReceivedFilter;
 };
 
@@ -88,6 +92,8 @@ public:
   void PutDecodingBloomFilter (Ptr<MyBloom_filter> node);
   Ptr<MyBloom_filter> GetDecodedBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
   Ptr<MyBloom_filter> GetDecodingBloomFilter (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
+  Ptr<MyBloom_filter> GetDecodedBloomFilter () const;
+  Ptr<MyBloom_filter> GetDecodingBloomFilter () const;
   void SetRemainingCapacity (uint8_t remainingCapacity);
   uint8_t GetRemainingCapacity (void) const;
   void SetPktIndex(uint16_t pktIndex);
@@ -102,7 +108,11 @@ public:
   uint8_t m_remainingCapacity;
   uint8_t m_decodingBufSize;  //conveys neighbor's decodingBufSize
   std::size_t m_decodedTableSize;
+  std::size_t m_decodedSaltCount;
+  std::size_t m_decodedRandomSeed;
   std::size_t m_decodingTableSize;
+  std::size_t m_decodingSaltCount;
+  std::size_t m_decodingRandomSeed;
   unsigned char* m_decodedBitTable;
   unsigned char* m_decodingBitTable;
   uint16_t m_pktIndex;
@@ -122,9 +132,12 @@ class BeaconHeader: public StatusFeedbackHeader
   //std::vector<uint8_t> m_pktIdLength;
   void PuteBF(Ptr<MyBloom_filter> bf);
   Ptr<MyBloom_filter> GeteBF (const std::size_t predictedElementCount , const double falsePositiveProbability) const;
-  std::size_t m_eBfInsertedElementCount;
-  std::size_t m_eBfTableSize;
-  unsigned char* m_eBfBitTable;
+  Ptr<MyBloom_filter> GeteBF () const;
+  std::size_t m_eBFInsertedElementCount;
+  std::size_t m_eBFTableSize;
+  std::size_t m_eBFSaltCount;
+  std::size_t m_eBFRandomSeed;
+  unsigned char* m_eBFBitTable;
 };
 
 
@@ -146,7 +159,7 @@ public:
   void SetupBeacon ();
   void Start();
   void Stop();
-  void GenerateBeacon ();
+  void GenerateBeacon (bool isperm);
   void Receive (Ptr<Socket> socket);
   void Forward ();
   void UpdateNeighborListStatus(StatusFeedbackHeader, Ipv4Address);
@@ -202,6 +215,7 @@ public:
   std::deque<Ptr<NetworkCodedDatagram> > m_buffer;
   // List containing decoded packets
   std::vector<Ptr<DecodedPacketStorage> > m_decodedBuf;
+  int smalldecodedBFIndex;
   std::map<std::string, Ptr<DecodedPacketStorage> > m_decodedList;
   // List containing packets to decode
   std::vector<Ptr<NetworkCodedDatagram> > m_decodingBuf;

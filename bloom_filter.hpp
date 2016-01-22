@@ -65,6 +65,20 @@ public:
       std::fill_n(bit_table_,(table_size_ / bits_per_char),0x00);
    }
 
+   bloom_filter(const std::size_t& table_size, const std::size_t& salt_count,
+                const std::size_t& random_seed, unsigned char* buffer)
+   : salt_count_(salt_count),
+     table_size_(table_size),
+     predicted_element_count_(0),
+     inserted_element_count_(0),
+     random_seed_(random_seed),
+     desired_false_positive_probability_(0)
+   {
+     generate_unique_salt();
+     bit_table_ = new cell_type[table_size_ / bits_per_char];
+     std::copy(buffer,buffer + (table_size_ / bits_per_char),bit_table_);
+   }
+
    bloom_filter(const bloom_filter& filter)
    {
       this->operator=(filter);
@@ -211,6 +225,15 @@ public:
       return inserted_element_count_;
    }
 
+   inline virtual std::size_t salt_count() const
+   {
+     return salt_count_;
+   }
+
+   inline virtual std::size_t seed() const
+   {
+     return random_seed_;
+   }
    inline double effective_fpp() const
    {
       /*
