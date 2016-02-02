@@ -53,12 +53,14 @@ public:
   Ptr<MyBloom_filter> smallNeighborDecodedFilter;
   Ptr<MyBloom_filter> bigNeighborDecodedFilter;
   Ptr<MyBloom_filter> neighborReceivedFilter;
+  bool punished;
 };
 
 struct WaitingListMember
 {
   std::string pktId;
   uint64_t entranceTime;
+  float score;
   std::vector <std::string> nodeForwardedTo;
 
 };
@@ -187,7 +189,7 @@ public:
   void RemoveLine(int);
   void RemoveCol(int);
   bool CheckVarList(void);
-
+  void insertIntoDecodedBuf(Ptr<NetworkCodedDatagram> );
   void RemoveVariable(std::set<std::string> );
 public:
   std::map<uint8_t, Neighbor> m_neighborhood;
@@ -249,6 +251,7 @@ public:
   uint32_t m_nErasedElements;
   WaitingList m_waitingList;
   uint16_t m_pktIndex;
+  int m_punishValue;
 };
 
 class Experiment
