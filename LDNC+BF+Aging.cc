@@ -52,8 +52,8 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("NetworkCoding");
 
-static const std::size_t BUFFER_SIZE = 120;
-static const std::size_t WAITING_LIST_SIZE = 100;
+static const std::size_t BUFFER_SIZE = 80;
+static const std::size_t WAITING_LIST_SIZE = 70;
 static const std::size_t MAX_VARLIST_SIZE = 50;
 static const std::size_t MaxNumberOfCoeff=10;
 //static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
@@ -601,6 +601,10 @@ MyNCApp::GenerateBeacon (bool isperm) {
   int sizeDecodedList, sizeDeliveredList;
 
 	Time now = Simulator::Now ();
+  if (now.GetSeconds()>763.257)
+    NS_LOG_UNCOND("THERE");
+  bool sendStatus=false;
+
 	// First check if there is inactive neighbors
   int nodeId;
 	for (it=m_neighborhood.begin(); it!=m_neighborhood.end();) {
@@ -934,11 +938,9 @@ void MyNCApp::Forward ()
 {
   PktTypeTag tag;
   Time now = Simulator::Now();
+  if (now.GetSeconds()>763.411)
+    NS_LOG_UNCOND("THERE");
   bool sendStatus=false;
-  if (now.GetSeconds()>1.34557){
-          NS_LOG_UNCOND("HELLO");
-  }
-
   if (!m_idle) {
     std::string tmpStr;
     int sizeDecodedList;
