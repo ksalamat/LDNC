@@ -54,6 +54,9 @@ public:
   Ptr<MyBloom_filter> bigNeighborDecodedFilter;
   Ptr<MyBloom_filter> neighborReceivedFilter;
   bool punished;
+  int numConsDrop;
+  int numConsRedundant;
+  bool panicked;
 };
 
 struct WaitingListMember
@@ -118,6 +121,8 @@ public:
   unsigned char* m_decodedBitTable;
   unsigned char* m_decodingBitTable;
   uint16_t m_pktIndex;
+  bool m_panicked;
+  uint8_t m_panickingNode;
 };
 
 class BeaconHeader: public StatusFeedbackHeader
@@ -168,9 +173,10 @@ public:
   void UpdateNeighborListBeacon(BeaconHeader,Ipv4Address);
   bool UpdateNeighorhoodEst(MapType);
   Ptr<NetworkCodedDatagram> Encode ();
+  Ptr<NetworkCodedDatagram> PanicEncode ();  
   void Reduce (NetworkCodedDatagram& g);
   void UpdateVarList (NetworkCodedDatagram& g);
-  int CheckCapacity(NetworkCodedDatagram& g);
+  bool CheckCapacity(NetworkCodedDatagram& g);
   void GenerateMatrix ();
   void GausElim(int M, int N);
   void PermuteCol(int col1, int col2, int L);
@@ -251,7 +257,9 @@ public:
   uint32_t m_nErasedElements;
   WaitingList m_waitingList;
   uint16_t m_pktIndex;
-  int m_punishValue;
+  bool m_panicked;
+  bool m_inPanicMode;
+  uint8_t m_panickingNode;
 };
 
 class Experiment
