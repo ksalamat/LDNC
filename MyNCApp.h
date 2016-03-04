@@ -173,7 +173,7 @@ public:
   void UpdateNeighborListBeacon(BeaconHeader,Ipv4Address);
   bool UpdateNeighorhoodEst(MapType);
   Ptr<NetworkCodedDatagram> Encode ();
-  Ptr<NetworkCodedDatagram> PanicEncode ();  
+  Ptr<NetworkCodedDatagram> PanicEncode ();
   void Reduce (NetworkCodedDatagram& g);
   void UpdateVarList (NetworkCodedDatagram& g);
   bool CheckCapacity(NetworkCodedDatagram& g);
@@ -197,6 +197,7 @@ public:
   bool CheckVarList(void);
   void insertIntoDecodedBuf(Ptr<NetworkCodedDatagram> );
   void RemoveVariable(std::set<std::string> );
+  void RemoveOldVariables();
 public:
   std::map<uint8_t, Neighbor> m_neighborhood;
   bool m_amSource; // indicate that the node is a source
@@ -250,6 +251,7 @@ public:
   double packetDelay;
   Ptr<ExponentialRandomVariable> expVar;
   Ptr<UniformRandomVariable> uniVar;
+  uint32_t m_oldwaitingList;
 
   // For case Node is a source
   uint32_t m_nGeneratedPackets;
@@ -291,6 +293,7 @@ public:
   uint32_t s_oldestDiscardedNum;
   uint32_t s_bytesTotal;
   double s_packetDelay;
+  uint32_t s_oldwaitingList;
 
   Experiment();
   Experiment(std::string name);

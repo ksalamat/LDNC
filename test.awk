@@ -4,6 +4,7 @@ BEGIN{
 }
 /broadcast D/{
 	pktNum[i++]=$6
+	Time[$6]=$3
 	recvNum[$6]=0
 	dropNum[$6]=0
 	uselessNum[$6]=0
@@ -25,6 +26,6 @@ BEGIN{
 }
 END{
 	for (pkt in recvNum) {
-		print pkt,",", recvNum[pkt],",", dropNum[pkt],",", uselessNum[pkt]
+		print Time[pkt],",",pkt,",", recvNum[pkt],",", dropNum[pkt],",", uselessNum[pkt]
 	}
 }
