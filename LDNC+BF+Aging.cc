@@ -57,8 +57,8 @@ static const std::size_t WAITING_LIST_SIZE = 50;
 static const std::size_t MAX_VARLIST_SIZE = 50;
 static const std::size_t MaxNumberOfCoeff=10;
 //static const std::size_t DECODING_BUFF_SIZE = MAX_VARLIST_SIZE;
-static const std::size_t DECODED_BUFF_SIZE = 300;
-static const std::size_t MAX_DELIVERED_LIST_SIZE =300;
+static const std::size_t DECODED_BUFF_SIZE = 600;
+static const std::size_t MAX_DELIVERED_LIST_SIZE =600;
 static const std::size_t VAR_LIFETIME=900;
 static const float NEIGHBOR_TIMER = 1.2;
 static const double BEACON_PERIOD = 1;
@@ -1279,11 +1279,20 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
   A.resize(len);
   for (int i=0;i<len;A.at(i++)=0);
   std::vector<Ptr<DecodedPacketStorage> >::iterator itr;
+//  std::vector<int> indices(m_decodedBuf.size());
+//  for (int j=0;j<indices.size();j++){
+//    indices[j]=j;
+//  }
+//  std::vector<int>::iterator it;
+//  std::random_shuffle ( indices.begin(), indices.end() );
   for (listIterator=m_neighborhood.begin(); listIterator!=m_neighborhood.end(); listIterator++) {
     B.at(index)=listIterator->second.neighborRemainingCapacity/m_neighborhood.size();
     //let's first iterate over the decoded packets
     int i=0;
     for (itr=m_decodedBuf.begin();itr!=m_decodedBuf.end();itr++) {
+
+//    for (it=indices.begin();it!=indices.end();it++) {
+//      itr=m_decodedBuf.begin()+(*it);
       std::string tmpStr = (*itr)->attribute.Key();
       F.at(i)=0;
       if (!(listIterator->second.smallNeighborDecodedFilter->contains(tmpStr)) &&
@@ -1377,8 +1386,8 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
     }
     //let us now set the rows bounds (0<= summation of probabilities <= capacity of corresponding neighbor)
     //before to loading the constraint matrix we should prepare the required args (ia[], ja[], and ar[])
-    int ia[1+2000], ja[1+2000];
-    double ar[1+2000];
+    int ia[1+5000], ja[1+5000];
+    double ar[1+5000];
     int M= (int)m_neighborhood.size();
     int i=0;
     for (listIterator=m_neighborhood.begin();listIterator!=m_neighborhood.end();listIterator++) {
@@ -1420,6 +1429,8 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
       std::vector<Ptr<DecodedPacketStorage> >::iterator itr2;
       int i=0, varNum=0;
       for (itr2=m_decodedBuf.begin();itr2!=m_decodedBuf.end();itr2++) {
+//      for (it=indices.begin();it!=indices.end();it++) {
+//        itr2=m_decodedBuf.begin()+(*it);
         if ((probabilities.at(i)==1) || ((probabilities.at(i)!=0) &&
         (uniVar->GetValue(0.0,1.0) < probabilities.at(i)))) {
           varNum++;
@@ -2022,9 +2033,7 @@ void MyNCApp::RemoveOldVariables () {
   }
   std::map<std::string, Ptr<DecodedPacketStorage> >::iterator itr;
   for (WaitingList::iterator it=m_waitingList.begin(); it!=m_waitingList.end();) {
-    itr=m_decodedList.find(it->pktId);
-//    assert(itr!=m_decodedList.end());
-    if (now.GetMilliSeconds()-itr->second->attribute.GetGenTime()>VAR_LIFETIME*1000){
+    if (now.GetMilliSeconds()-it->entranceTime>VAR_LIFETIME*1000){
         it=m_waitingList.erase(it);
         m_oldwaitingList++;
     } else
