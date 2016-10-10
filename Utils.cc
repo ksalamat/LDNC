@@ -474,6 +474,7 @@ bool NetworkCodedDatagram::operator== (const NetworkCodedDatagram& nc) const
   MapType tmpMap, myMap;
   tmpMap = nc.m_coefsList;
   myMap = m_coefsList;
+  it2=tmpMap.begin();
   for (it= myMap.begin(); it!= myMap.end() ; it++)
     {
       if ((*it).first != (*it2).first)
