@@ -1450,7 +1450,7 @@ Ptr<NetworkCodedDatagram> MyNCApp::Encode () {
       }//for over decodedBuf
       if (!m_degraded){
         for (uint16_t i=0;i<m_decodingBuf.size();i++) {
-          if (uniVar->GetValue (0.0,1.0) < probabilities.at(i)){
+          if (uniVar->GetValue (0.0,1.0) < probabilities.at(i+L)){
             numVar=numVar+m_decodingBuf[i]->m_coefsList.size();
             coef = uniVar->GetInteger (1,255);
             g=(*m_decodingBuf.at(i));
